@@ -1,71 +1,32 @@
-import { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Inter_400Regular, Inter_700Bold, useFonts } from '@expo-google-fonts/inter';
+import { Text, TouchableOpacity } from "react-native";
+interface MyButtonProps {
+    text: string
+    onClick: () => void
+    width?: number
+    height?: number
+    backgroundColour?: string
+    textColour?: string
+}
 
-const Touchables = () => {
-  const [activeButton, setActiveButton] = useState("Yes");
-
-  const handlePress = (buttonName: string) => {
-    setActiveButton(buttonName);
-  };
-
-  const renderButton = (label: string) => {
-    const isActive = activeButton === label;
-
+const MyButton = ({ text, onClick, width = 256, height = 64, backgroundColour = "black", textColour = "white" }: MyButtonProps) => {
+    const [fontsLoaded] = useFonts({
+        Inter_400Regular,
+        Inter_700Bold,
+    });
     return (
-      <TouchableOpacity
-        onPress={() => handlePress(label)}
-        style={[styles.button, !isActive && styles.secondaryButton]}
-      >
-        <Text
-          style={[styles.buttonText, !isActive && styles.secondaryButtonText]}
+        <TouchableOpacity
+            onPress={() => onClick()}
+            className={`rounded-full justify-center items-center`}
+            style={{ backgroundColor: backgroundColour, width: width, height: height }}
         >
-          {label}
-        </Text>
-      </TouchableOpacity>
+            <Text
+                style={{ color: textColour, fontFamily: "Inter_400Regular", fontSize: 16 }}
+            >
+                {text}
+            </Text>
+        </TouchableOpacity>
     );
-  };
-
-  return (
-    <View style={styles.container}>
-      {renderButton("Yes")}
-      {renderButton("No")}
-      {renderButton("Don't Care")}
-    </View>
-  );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    paddingTop: 100,
-    paddingLeft: 24,
-    paddingRight: 24,
-    paddingBottom: 16,
-    alignItems: "center",
-  },
-  button: {
-    width: 276,
-    height: 60,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 9999,
-    backgroundColor: "#000000",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  buttonText: {
-    color: "#ffffff",
-    fontSize: 20,
-    fontWeight: "400",
-    textAlign: "center",
-  },
-  secondaryButton: {
-    backgroundColor: "#E8E8E8",
-  },
-  secondaryButtonText: {
-    color: "#1B1B1B",
-  },
-});
-
-export default Touchables;
+export default MyButton
