@@ -1,13 +1,10 @@
-import { StyleSheet, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 
 export default function HomeScreen() {
   return (
-    <View style={{ backgroundColor: "white", height: '100%' }}>
-      Home Screen
+    <View className="bg-white h-full">
+      <Text>Home Screen</Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-});
