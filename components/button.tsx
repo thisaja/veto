@@ -1,23 +1,25 @@
 import { Inter_400Regular, Inter_700Bold, useFonts } from '@expo-google-fonts/inter';
-import { StyleProp, StyleSheet, Text, TextStyle, TouchableOpacity, ViewStyle } from "react-native";
-export const buttonStyles = StyleSheet.create({
+import { ReactNode } from 'react';
+import { StyleProp, StyleSheet, TouchableOpacity, ViewStyle } from "react-native";
+const buttonStyles = StyleSheet.create({
     baseButtonStyle: {
         width: 256,
         height: 64,
         backgroundColor: "black",
+        flexDirection: "row",
+        gap: 8,
+        borderRadius: 32,
+        justifyContent: "center",
+        alignItems: "center"
     },
-    baseTextStyle: {
-        color: "white"
-    }
 })
 interface MyButtonProps {
-    text: string
     onClick: () => void
-    buttonStyle?: StyleProp<ViewStyle>
-    textStyle?: StyleProp<TextStyle>
+    children?: ReactNode
+    style?: StyleProp<ViewStyle>
 }
 
-const MyButton = ({ text, onClick, buttonStyle, textStyle }: MyButtonProps) => {
+const MyButton = ({ children, onClick, style }: MyButtonProps) => {
     const [fontsLoaded] = useFonts({
         Inter_400Regular,
         Inter_700Bold,
@@ -25,14 +27,9 @@ const MyButton = ({ text, onClick, buttonStyle, textStyle }: MyButtonProps) => {
     return (
         <TouchableOpacity
             onPress={() => onClick()}
-            className={`rounded-full justify-center items-center`}
-            style={[buttonStyles.baseButtonStyle, buttonStyle]}
+            style={[buttonStyles.baseButtonStyle, style]}
         >
-            <Text
-                style={[buttonStyles.baseTextStyle, textStyle]}
-            >
-                {text}
-            </Text>
+            {children}
         </TouchableOpacity>
     );
 };

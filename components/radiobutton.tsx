@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 import MyButton from "./button";
 
 interface RadiobuttonProps {
@@ -14,11 +14,11 @@ const Radiobutton = ({ options }: RadiobuttonProps) => {
         return (
           <MyButton
             key={index}
-            text={value}
             onClick={() => setSelectedOption(index)}
-            buttonStyle={{ backgroundColor: selectedOption == index ? "black" : "#e4e2dd" }}
-            textStyle={{ color: selectedOption == index ? "white" : "#1b1c19" }}
-          />
+            style={{ backgroundColor: selectedOption === index ? "black" : "#e4e2dd" }}
+          >
+            <Text style={{ color: selectedOption === index ? "white" : "#1b1c19" }}>{value}</Text>
+          </MyButton>
         )
       })}
     </View>
