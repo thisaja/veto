@@ -1,7 +1,10 @@
+import { globalStyles } from '@/constants/global';
+import { Feather } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
-import { useState } from "react";
+import React, { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import MapView, { Circle, LatLng, Marker } from 'react-native-maps';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import MyButton from '@/components/button';
 import Multiselect from '@/components/multiselect';
@@ -23,7 +26,7 @@ const CreateSessionScreen = () => {
     // The radius is in KM
     const [radius, setRadius] = useState<number>(3)
     return (
-        <View style={styles.createSessionScreen}>
+        <SafeAreaView style={globalStyles.screen}>
             <Text style={{ fontFamily: "Newsreader_600SemiBold", fontSize: 24, color: "#1B1B1B" }}>
                 Where are we eating?
             </Text>
@@ -61,28 +64,24 @@ const CreateSessionScreen = () => {
                 />
             </View>
             <View style={styles.dealbreakerContainer}>
-                <Text style={{ fontFamily: "Newsreader_400Regular", fontSize: 28, color: "#1B1B1B" }}>Any Dealbreakers?</Text>
-                <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: "#4C4546", paddingInlineEnd: 25 }}>Select dietary restrictions for the group.
+                <Text style={{ fontFamily: "Newsreader_400Regular", fontSize: 24, color: "#1B1B1B" }}>Any Dealbreakers?</Text>
+                <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: "#4C4546", paddingInlineEnd: 25 }}>Select dietary restrictions for the group.
                     We'll only show places that accommodate
                     everyone.</Text>
                 <Multiselect options={["Vegan", "Vegetarian", "Gluten-Free", "Halal", "Nut Allergy", "Kosher"]} />
             </View>
-            <MyButton text="Set Filters" onClick={() => router.push("/invite")} buttonStyle={{ width: "100%", height: 56 }} />
-        </View >
+            <MyButton onClick={() => router.push("/invite")} style={{ width: "100%", height: 56 }} >
+                <Text style={{ color: "white", fontSize: 16 }}>Set Filters</Text>
+                <Feather name="arrow-right" size={16} color="white" />
+            </MyButton>
+        </SafeAreaView >
     )
 }
 const styles = StyleSheet.create({
-    createSessionScreen: {
-        width: "100%",
-        height: "100%",
-        paddingBlock: 84,
-        paddingInline: 24,
-        gap: 24,
-        backgroundColor: "white"
-    },
     mapContainer: {
         width: "100%",
-        height: 256
+        flex: 1,
+        borderRadius: 16
     },
     map: {
         width: '100%',
@@ -94,6 +93,7 @@ const styles = StyleSheet.create({
         gap: 24
     },
     distanceContainer: {
+        width: "100%",
         flexDirection: "row",
         justifyContent: "space-between"
     },
@@ -103,13 +103,14 @@ const styles = StyleSheet.create({
     },
     dealbreakerContainer: {
         width: "100%",
+        flex: 1,
         padding: 24,
         gap: 16,
         backgroundColor: "#E4E2DD",
         borderWidth: 1,
         borderStyle: "solid",
         borderColor: "#CFC4C5",
-        borderRadius: 24
+        borderRadius: 24,
     },
 })
 export default CreateSessionScreen

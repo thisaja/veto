@@ -1,12 +1,13 @@
-import { Text, View } from "react-native"
+import { Text } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 const FriendsScreen = () => {
     return (
-        <View>
+        <SafeAreaView>
             <Text>
                 This is the friends page.
             </Text>
-        </View>
+        </SafeAreaView>
     )
 }
 export default FriendsScreen

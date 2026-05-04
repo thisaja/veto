@@ -1,6 +1,6 @@
 import { Inter_400Regular, Inter_500Medium, useFonts } from '@expo-google-fonts/inter';
 import { useState } from "react";
-import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
 
 import MyButton from "./button";
 
@@ -10,7 +10,7 @@ interface MultiselectProps {
 }
 const multiselectStyles = StyleSheet.create({
     baseMultiselectStyle: {
-        width: 200,
+        width: "80%",
         height: "auto",
         flexDirection: "row",
         flexWrap: "wrap",
@@ -41,21 +41,21 @@ const Multiselect = ({ style, options }: MultiselectProps) => {
                 return (
                     <MyButton
                         key={index}
-                        text={value}
-                        buttonStyle={{
+                        style={{
                             alignSelf: "flex-start",
                             width: "auto",
                             height: "auto",
                             paddingInline: 16,
                             paddingBlock: 12,
                             backgroundColor: selectedOptions.includes(index) ? "black" : "white",
-                            borderWidth: 1,
+                            borderWidth: selectedOptions.includes(index) ? 0 : 1,
                             borderStyle: "solid",
                             borderColor: "#CFC4C5",
                         }}
-                        textStyle={{ color: selectedOptions.includes(index) ? "white" : "black", fontFamily: selectedOptions.includes(index) ? "Inter_500Medium" : "Inter_400Regular", fontSize: 14 }}
                         onClick={() => clickOption(index)}
-                    />
+                    >
+                        <Text style={{ color: selectedOptions.includes(index) ? "white" : "black", fontFamily: selectedOptions.includes(index) ? "Inter_500Medium" : "Inter_400Regular", fontSize: 12 }}>{value}</Text>
+                    </MyButton>
                 )
             })}
         </View>
