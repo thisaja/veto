@@ -16,8 +16,8 @@ const Radiobutton = ({ options }: RadiobuttonProps) => {
             key={index}
             text={value}
             onClick={() => setSelectedOption(index)}
-            backgroundColour={selectedOption == index ? "black" : "#e4e2dd"}
-            textColour={selectedOption == index ? "white" : "#1b1c19"}
+            buttonStyle={{ backgroundColor: selectedOption == index ? "black" : "#e4e2dd" }}
+            textStyle={{ color: selectedOption == index ? "white" : "#1b1c19" }}
           />
         )
       })}
