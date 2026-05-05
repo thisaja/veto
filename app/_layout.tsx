@@ -15,6 +15,7 @@ export default function RootLayout() {
         <Stack.Screen name="createSession" options={{ headerShown: false }} />
         <Stack.Screen name="invite" options={{ headerShown: false }} />
         <Stack.Screen name="questionnaire" options={{ headerShown: false }} />
+        <Stack.Screen name="questionResults" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
     </>

@@ -30,9 +30,14 @@ const qaPair = [
 
 export default function Questionnaire() {
   const router = useRouter();
+
   const [counter, setCounter] = useState(0);
-  const [userAnswers, setUserAnswers] = useState<string[]>([]);
-  const [currentSelection, setCurrentSelection] = useState<string>("");
+
+  const [userAnswers, setUserAnswers] = useState<string[]>(
+    new Array(qaPair.length).fill(""),
+  );
+
+  const currentSelection = userAnswers[counter];
 
   React.useEffect(() => {
     console.log("Current Selection:", currentSelection);
@@ -41,45 +46,43 @@ export default function Questionnaire() {
 
   const currentQuestion = qaPair[counter];
 
-  const handleNext = (selectedAnswer?: string) => {
-    if (currentSelection) {
-      setUserAnswers([...userAnswers, currentSelection]);
+  const handleBack = () => {
+    if (counter > 0) {
+      setCounter(counter - 1);
     }
+  };
 
+  const handleNext = () => {
     if (counter < qaPair.length - 1) {
       setCounter(counter + 1);
-      setCurrentSelection("");
-    }
-    /** 
-    else {
+    } else {
       router.push({
         pathname: "/questionResults",
         params: { answers: JSON.stringify(userAnswers) },
       });
     }
-      
-
-
-  /** 
-  const handleBack = () => {
-    if (counter > 0) {
-      setCounter(counter - 1);
-    } else {
-      router.back();
-    }
   };
-  */
+
+  const updateAnswer = (val: string) => {
+    const newAnswers = [...userAnswers];
+    newAnswers[counter] = val;
+    setUserAnswers(newAnswers);
   };
+
   return (
     <SafeAreaView className="bg-white h-full">
       <View className="bg-white h-full">
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.push("/")}>
-            <Image
-              style={styles.xButton}
-              source={require("../assets/images/closeButton.png")}
-            />
-          </Pressable>
+          {counter !== 0 ? (
+            <Pressable onPress={() => handleBack()}>
+              <Image
+                style={styles.backButton}
+                source={require("../assets/images/backButton.png")}
+              />
+            </Pressable>
+          ) : (
+            <View style={styles.backButton} />
+          )}
           <Text style={styles.curatingText}>CURATING</Text>
           <Pressable onPress={() => handleNext()}>
             <Image
@@ -91,21 +94,30 @@ export default function Questionnaire() {
         <View style={styles.qBoxStyle}>
           <View style={styles.container}>
             <View style={styles.imageCon}>
-              {<Image source={{ uri: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQe7IvVawuaP6C6YC3wKwavLj9rLTV5s7EdDQ&s" }} style={styles.image} />}
+              <Image
+                source={{
+                  uri: "../assets/images/fireBUtton.png",
+                }}
+                style={styles.image}
+              />
             </View>
             <Text style={styles.questionStyle} numberOfLines={2}>
               {currentQuestion.question}
             </Text>
             <View style={styles.buttonCon}>
-              <Radiobutton options={currentQuestion.answer} onClick={(val) => setCurrentSelection(val)} />
+              <Radiobutton
+                options={currentQuestion.answer}
+                value={userAnswers[counter]}
+                onClick={(val) => updateAnswer(val)}
+              />
             </View>
           </View>
         </View>
         <View style={{ marginLeft: 30, marginTop: 15 }}>
           <Progress
             size={350}
-            currentPage={counter}
-            pageTotal={4}
+            currentPage={counter + 1}
+            pageTotal={qaPair.length}
             color={"black"}
           />
         </View>
@@ -120,7 +132,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingLeft: 25,
   },
-  xButton: {
+  backButton: {
     width: 60,
     height: 60,
     borderRadius: 30,

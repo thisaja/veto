@@ -1,33 +1,32 @@
-import { useState } from "react";
 import { Text, View } from "react-native";
 import MyButton from "./button";
 
 interface RadiobuttonProps {
-  options: string[]
-  onClick: (val: string) => void
+  options: string[];
+  onClick: (val: string) => void;
+  value: string;
 }
-const Radiobutton = ({ options, onClick }: RadiobuttonProps) => {
-  const [selectedOption, setSelectedOption] = useState(0);
-
+const Radiobutton = ({ options, onClick, value }: RadiobuttonProps) => {
   return (
     <View style={{ gap: 16 }}>
-      {options.map((value, index) => {
+      {options.map((option, index) => {
+        const isSelected = option === value;
         return (
           <MyButton
             key={index}
             onClick={() => {
-              setSelectedOption(index);
               onClick(options[index]);
             }}
-            style={{ backgroundColor: selectedOption === index ? "black" : "#e4e2dd" }}
+            style={{ backgroundColor: isSelected ? "black" : "#e4e2dd" }}
           >
-            <Text style={{ color: selectedOption === index ? "white" : "#1b1c19" }}>{value}</Text>
+            <Text style={{ color: isSelected ? "white" : "#1b1c19" }}>
+              {option}
+            </Text>
           </MyButton>
-        )
+        );
       })}
     </View>
   );
 };
-
 
 export default Radiobutton;

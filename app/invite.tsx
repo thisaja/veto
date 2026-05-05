@@ -1,24 +1,24 @@
 import MyButton from "@/components/button";
 import { globalStyles } from "@/constants/global";
 import {
-    Inter_400Regular,
-    Inter_600SemiBold,
-    useFonts,
+  Inter_400Regular,
+  Inter_600SemiBold,
+  useFonts,
 } from "@expo-google-fonts/inter";
 import {
-    Newsreader_400Regular,
-    Newsreader_600SemiBold,
+  Newsreader_400Regular,
+  Newsreader_600SemiBold,
 } from "@expo-google-fonts/newsreader";
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 const blurhash =
