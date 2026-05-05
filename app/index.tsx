@@ -1,7 +1,12 @@
 import MyButton from "@/components/button";
 import { globalStyles } from "@/constants/global";
-import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
-import { Newsreader_400Regular, Newsreader_400Regular_Italic, Newsreader_600SemiBold, useFonts } from '@expo-google-fonts/newsreader';
+import { Inter_400Regular, Inter_600SemiBold } from "@expo-google-fonts/inter";
+import {
+  Newsreader_400Regular,
+  Newsreader_400Regular_Italic,
+  Newsreader_600SemiBold,
+  useFonts,
+} from "@expo-google-fonts/newsreader";
 import { ImageBackground } from "expo-image";
 import { useRouter } from "expo-router";
 import { Text, TouchableOpacity, View } from "react-native";
@@ -14,18 +19,46 @@ const LandingScreen = () => {
     Inter_400Regular,
     Inter_600SemiBold,
   });
-  const router = useRouter()
+  const router = useRouter();
   return (
     <View style={{ width: "100%", height: "100%" }}>
-      <ImageBackground source={require("../assets/images/landing-background.png")} contentFit="cover" style={{ flex: 1 }}>
-        <SafeAreaView style={[globalStyles.screen, { backgroundColor: "none", justifyContent: "space-between", alignItems: "center", paddingTop: 48, paddingBottom: 48 }]}>
+      <ImageBackground
+        source={require("../assets/images/landing-background.png")}
+        contentFit="cover"
+        style={{ flex: 1 }}
+      >
+        <SafeAreaView
+          style={[
+            globalStyles.screen,
+            {
+              backgroundColor: "none",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingTop: 48,
+              paddingBottom: 48,
+            },
+          ]}
+        >
           <View style={{ alignItems: "center", gap: 12 }}>
-            <Text style={{ fontFamily: "Newsreader_400Regular_Italic", fontSize: 40, fontStyle: "italic" }}>
-              Taster
+            <Text
+              style={{
+                fontFamily: "Newsreader_400Regular_Italic",
+                fontSize: 40,
+                fontStyle: "italic",
+              }}
+            >
+              Veto
             </Text>
-            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 17, color: "#4C4546", paddingInline: 50, textAlign: "center" }}>
-              Curated culinary experiences for
-              the discerning group.
+            <Text
+              style={{
+                fontFamily: "Inter_400Regular",
+                fontSize: 17,
+                color: "#4C4546",
+                paddingInline: 50,
+                textAlign: "center",
+              }}
+            >
+              Curated culinary experiences for the discerning group.
             </Text>
           </View>
           <View style={{ gap: 12 }}>
@@ -39,8 +72,18 @@ const LandingScreen = () => {
                 Login
               </Text>
             </MyButton>
-            <TouchableOpacity onPress={() => router.push("/createSession")} style={{ paddingTop: 12 }}>
-              <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#4C4546", textAlign: "center" }}>
+            <TouchableOpacity
+              onPress={() => router.push("/createSession")}
+              style={{ paddingTop: 12 }}
+            >
+              <Text
+                style={{
+                  fontFamily: "Inter_600SemiBold",
+                  fontSize: 12,
+                  color: "#4C4546",
+                  textAlign: "center",
+                }}
+              >
                 CONTINUE AS GUEST
               </Text>
             </TouchableOpacity>
@@ -48,6 +91,6 @@ const LandingScreen = () => {
         </SafeAreaView>
       </ImageBackground>
     </View>
-  )
-}
-export default LandingScreen
+  );
+};
+export default LandingScreen;
