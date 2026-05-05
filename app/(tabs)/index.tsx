@@ -9,7 +9,10 @@ export default function HomeScreen() {
       <Text>Home Screen</Text>
       <Radiobutton options={["Yes", "No", "Don't Care"]} />
       <Button title="Create invite" onPress={() => router.push("/invite")} />
-      <Button title="Create session" onPress={() => router.push("/createSession")} />
+      <Button
+        title="Create session"
+        onPress={() => router.push("/createSession")}
+      />
     </SafeAreaView>
   );
 }
