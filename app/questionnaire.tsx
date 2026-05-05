@@ -1,5 +1,5 @@
 import Progress from "@/components/progress";
-import QuestionBox from "@/components/questionBox";
+import Radiobutton from "@/components/radiobutton";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
@@ -89,15 +89,17 @@ export default function Questionnaire() {
           </Pressable>
         </View>
         <View style={styles.qBoxStyle}>
-          <QuestionBox
-            key={counter}
-            question={currentQuestion.question}
-            iconURL={
-              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQe7IvVawuaP6C6YC3wKwavLj9rLTV5s7EdDQ&s"
-            }
-            answerOptions={currentQuestion.answer}
-            onSelect={(value) => setCurrentSelection(value)}
-          />
+          <View style={styles.container}>
+            <View style={styles.imageCon}>
+              {<Image source={{ uri: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQe7IvVawuaP6C6YC3wKwavLj9rLTV5s7EdDQ&s" }} style={styles.image} />}
+            </View>
+            <Text style={styles.questionStyle} numberOfLines={2}>
+              {currentQuestion.question}
+            </Text>
+            <View style={styles.buttonCon}>
+              <Radiobutton options={currentQuestion.answer} onClick={(val) => setCurrentSelection(val)} />
+            </View>
+          </View>
         </View>
         <View style={{ marginLeft: 30, marginTop: 15 }}>
           <Progress
@@ -135,5 +137,40 @@ const styles = StyleSheet.create({
   qBoxStyle: {
     marginTop: 75,
     marginLeft: 5,
+  },
+  container: {
+    marginTop: 50,
+    marginBottom: 50,
+    marginLeft: 28,
+    marginRight: 50,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#aaaaaa80",
+    borderRadius: 50,
+    borderWidth: 1,
+    width: 350,
+    height: 500,
+    boxShadow: "0 10px 25px 18px rgba(0, 0, 0, 0.1)",
+  },
+  imageCon: {
+    marginLeft: 150,
+    marginTop: 30,
+  },
+  image: {
+    width: 50,
+    height: 50,
+    resizeMode: "cover",
+  },
+  questionStyle: {
+    color: "black",
+    fontFamily: "Inter_700Bold",
+    fontSize: 25,
+    textAlign: "justify",
+    marginTop: 15,
+    marginLeft: 50,
+    marginRight: 50,
+  },
+  buttonCon: {
+    marginTop: 60,
+    marginLeft: 40,
   },
 });

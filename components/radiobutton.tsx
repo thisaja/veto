@@ -4,8 +4,9 @@ import MyButton from "./button";
 
 interface RadiobuttonProps {
   options: string[]
+  onClick: (val: string) => void
 }
-const Radiobutton = ({ options }: RadiobuttonProps) => {
+const Radiobutton = ({ options, onClick }: RadiobuttonProps) => {
   const [selectedOption, setSelectedOption] = useState(0);
 
   return (
@@ -14,7 +15,10 @@ const Radiobutton = ({ options }: RadiobuttonProps) => {
         return (
           <MyButton
             key={index}
-            onClick={() => setSelectedOption(index)}
+            onClick={() => {
+              setSelectedOption(index);
+              onClick(options[index]);
+            }}
             style={{ backgroundColor: selectedOption === index ? "black" : "#e4e2dd" }}
           >
             <Text style={{ color: selectedOption === index ? "white" : "#1b1c19" }}>{value}</Text>
