@@ -42,43 +42,33 @@ const LoginScreen = () => {
       >
         <Text
           style={{
-            fontFamily: "Newsreader_400Regular_Italic",
-            fontSize: 40,
-            fontStyle: "italic",
+            fontFamily: "Newsreader_600SemiBold_Italic",
+            fontSize: 28,
+            alignSelf: "center",
           }}
         >
-          Veto
+          Welcome Back
         </Text>
-        <View style={{ flexDirection: "column", gap: 36 }}>
-          <Text
-            style={{
-              fontFamily: "Newsreader_600SemiBold_Italic",
-              fontSize: 28,
-              alignSelf: "center",
-              width: "100%",
-            }}
-          >
-            Welcome Back
-          </Text>
+        <View style={{ flexDirection: "column", gap: 48, width: "100%" }}>
           <View style={{ gap: 16 }}>
-            <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 10, color: "#4C4546" }}>
+            <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#4C4546" }}>
               EMAIL ADDRESS
             </Text>
             <TextInput
               keyboardType="email-address"
               placeholder="hello@example.com"
-              style={{ fontFamily: "Inter_400Regular", fontSize: 12 }}
+              style={{ fontFamily: "Inter_400Regular", fontSize: 14 }}
               placeholderTextColor={"#5E5E5E"}
               onChangeText={setEmail}
             />
           </View>
           <View style={{ gap: 16 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 10, color: "#4C4546" }}>
+              <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#4C4546" }}>
                 PASSWORD
               </Text>
               <TouchableOpacity>
-                <Text style={{ fontFamily: "Inter_400Regular", fontSize: 10, color: "#5F5E5B" }}>
+                <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: "#5F5E5B" }}>
                   Forgot Password?
                 </Text>
               </TouchableOpacity>
@@ -87,12 +77,12 @@ const LoginScreen = () => {
               placeholder="••••••••"
               textContentType="password"
               secureTextEntry={true}
-              style={{ fontFamily: "Inter_400Regular", fontSize: 12 }}
+              style={{ fontFamily: "Inter_400Regular", fontSize: 14 }}
               placeholderTextColor={"#5E5E5E"}
               onChangeText={setPassword}
             />
           </View>
-          <MyButton onClick={handleLogin} style={{ height: 48 }}>
+          <MyButton onClick={handleLogin} style={{ height: 48, width: "100%" }}>
             <Text style={{ color: "white" }}>LOG IN</Text>
           </MyButton>
         </View>
