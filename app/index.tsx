@@ -39,7 +39,7 @@ const LandingScreen = () => {
             },
           ]}
         >
-          <View style={{ alignItems: "center", gap: 12 }}>
+          <View style={{ alignItems: "center", gap: 12, width: "100%" }}>
             <Text
               style={{
                 fontFamily: "Newsreader_400Regular_Italic",
@@ -61,13 +61,16 @@ const LandingScreen = () => {
               Curated culinary experiences for the discerning group.
             </Text>
           </View>
-          <View style={{ gap: 12 }}>
-            <MyButton onClick={() => router.push("/register")} style={{ height: 48 }}>
+          <View style={{ gap: 12, width: "100%" }}>
+            <MyButton
+              onClick={() => router.push("/register")}
+              style={{ height: 48, width: "100%" }}
+            >
               <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: "white" }}>
                 Register
               </Text>
             </MyButton>
-            <MyButton onClick={() => router.push("/login")} style={{ height: 48 }}>
+            <MyButton onClick={() => router.push("/login")} style={{ height: 48, width: "100%" }}>
               <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: "white" }}>
                 Login
               </Text>

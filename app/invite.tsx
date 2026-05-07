@@ -6,7 +6,7 @@ import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const InviteScreen = () => {
@@ -20,7 +20,14 @@ const InviteScreen = () => {
   const [invitedFriends, setInvitedFriends] = useState<string[]>(["sam", "hady", "thomas"]);
   return (
     <SafeAreaView style={globalStyles.screen}>
-      <View style={styles.header}>
+      <View
+        style={{
+          flexDirection: "column",
+          justifyContent: "center",
+          height: 60,
+          width: "100%",
+        }}
+      >
         <MyButton
           style={{
             position: "absolute",
@@ -161,12 +168,4 @@ const InviteScreen = () => {
     </SafeAreaView>
   );
 };
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: "column",
-    justifyContent: "center",
-    height: 60,
-    width: "100%",
-  },
-});
 export default InviteScreen;
