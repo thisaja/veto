@@ -1,8 +1,10 @@
 import Progress from "@/components/progress";
 import Radiobutton from "@/components/radiobutton";
+import { Inter_400Regular, useFonts } from "@expo-google-fonts/inter";
+import { Newsreader_600SemiBold } from "@expo-google-fonts/newsreader";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const qaPair = [
@@ -33,16 +35,18 @@ export default function Questionnaire() {
 
   const [counter, setCounter] = useState(0);
 
-  const [userAnswers, setUserAnswers] = useState<string[]>(
-    new Array(qaPair.length).fill(""),
-  );
+  const [userAnswers, setUserAnswers] = useState<string[]>(new Array(qaPair.length).fill(""));
+
+  let [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Newsreader_600SemiBold,
+  });
+
+  if (!fontsLoaded) {
+    return <ActivityIndicator />;
+  }
 
   const currentSelection = userAnswers[counter];
-
-  React.useEffect(() => {
-    console.log("Current Selection:", currentSelection);
-    console.log("Answers Array:", userAnswers);
-  }, [currentSelection, userAnswers]);
 
   const currentQuestion = qaPair[counter];
 
@@ -70,8 +74,8 @@ export default function Questionnaire() {
   };
 
   return (
-    <SafeAreaView className="bg-white h-full">
-      <View className="bg-white h-full">
+    <SafeAreaView className="h-full bg-white">
+      <View className="h-full bg-white">
         <View style={styles.headerRow}>
           {counter !== 0 ? (
             <Pressable onPress={() => handleBack()}>
@@ -85,25 +89,15 @@ export default function Questionnaire() {
           )}
           <Text style={styles.curatingText}>CURATING</Text>
           <Pressable onPress={() => handleNext()}>
-            <Image
-              style={styles.nextButton}
-              source={require("../assets/images/nextButton.png")}
-            />
+            <Image style={styles.nextButton} source={require("../assets/images/nextButton.png")} />
           </Pressable>
         </View>
         <View style={styles.qBoxStyle}>
           <View style={styles.container}>
             <View style={styles.imageCon}>
-              <Image
-                source={{
-                  uri: "../assets/images/fireBUtton.png",
-                }}
-                style={styles.image}
-              />
+              <Image source={require("../assets/images/fireButton.png")} style={styles.image} />
             </View>
-            <Text style={styles.questionStyle} numberOfLines={2}>
-              {currentQuestion.question}
-            </Text>
+            <Text style={styles.questionStyle}>{currentQuestion.question}</Text>
             <View style={styles.buttonCon}>
               <Radiobutton
                 options={currentQuestion.answer}
@@ -145,6 +139,10 @@ const styles = StyleSheet.create({
   },
   curatingText: {
     marginLeft: 85,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    letterSpacing: 2,
+    color: "#666",
   },
   qBoxStyle: {
     marginTop: 75,
@@ -160,29 +158,31 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     borderWidth: 1,
     width: 350,
-    height: 500,
+    minHeight: 500,
     boxShadow: "0 10px 25px 18px rgba(0, 0, 0, 0.1)",
+    paddingBottom: 40,
   },
   imageCon: {
-    marginLeft: 150,
+    marginLeft: 160,
     marginTop: 30,
   },
   image: {
-    width: 50,
-    height: 50,
+    width: 35,
+    height: 35,
     resizeMode: "cover",
   },
   questionStyle: {
-    color: "black",
-    fontFamily: "Inter_700Bold",
-    fontSize: 25,
-    textAlign: "justify",
+    color: "#1A1A1A",
+    fontFamily: "Newsreader_600SemiBold",
+    fontSize: 32,
+    textAlign: "center",
     marginTop: 15,
-    marginLeft: 50,
-    marginRight: 50,
+    marginLeft: 40,
+    marginRight: 40,
+    lineHeight: 38,
   },
   buttonCon: {
-    marginTop: 60,
+    marginTop: 40,
     marginLeft: 40,
   },
 });
