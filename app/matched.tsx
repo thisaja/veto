@@ -1,5 +1,4 @@
 import MyButton from "@/components/button";
-import Card from "@/components/card";
 import { Inter_400Regular, Inter_600SemiBold, useFonts } from "@expo-google-fonts/inter";
 import {
   Newsreader_400Regular,
@@ -9,19 +8,12 @@ import {
 } from "@expo-google-fonts/newsreader";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Dimensions, Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
-interface MyUserProps {
-  id: number;
-  name?: string;
-  isReady?: string;
-  imageURL?: string;
-}
-
-const ResultScreen = () => {
+const MatchScreen = () => {
   let [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_600SemiBold,
@@ -30,24 +22,8 @@ const ResultScreen = () => {
     Newsreader_600SemiBold,
     Newsreader_400Regular_Italic,
   });
-  ``;
   const router = useRouter();
-  const FRIENDS = [
-    { id: 1, name: "Samuel", isReady: false, imageURL: "../assets/images/sam.png" },
-    { id: 2, name: "Thisaja", isReady: false, imageURL: "../assets/images/tt.png" },
-    { id: 3, name: "Hady", isReady: true, imageURL: "../assets/images/defaultUser.png" },
-    { id: 4, name: "Thomas", isReady: true, imageURL: "../assets/images/defaultUser.png" },
-  ];
   const CARDS = [
-    {
-      id: 1,
-      header: "Osteria Bianca",
-      imageURL:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuBHnkYKOAbep7frBylAtCBiv3d_UfuMpT8I3PdX_C65LLgCJ_QUqyG9JsMLTmIcispI4rbXnIS4hDzamuFtTdXEloFfGxI1mIbsoXfOVJKNBTVd7qEn7jit9yq_X8EOp2wlAAyIy7YZ46eKuXpnAHQUM8zmh09F1xjcUrl-8KDhnibdU-YDA7ddmiCXKjWubxQ5fZ0x_4hkNqqTFcxAUc6NfF53Q3qxk-yUJmQrCmalct501KheeHwNZqo0Krc-ryISjiMeBuulyrwZ",
-      label: "Italian",
-      description:
-        "Handmade pasta and rare regional wines in an intimate, candlelit setting that feels miles away from the city noise.",
-    },
     {
       id: 2,
       header: "Kinjo",
@@ -64,15 +40,14 @@ const ResultScreen = () => {
   }
 
   return (
-    <SafeAreaView className="h-full bg-white" style={{ justifyContent: "center" }}>
+    <SafeAreaView className="#fdfcfb h-full">
       <View style={styles.header}>
         <MyButton style={styles.sideButton} onClick={() => router.back()}>
           <Feather name="arrow-left" size={24} color="black" />
         </MyButton>
 
         <View style={styles.titleContainer}>
-          <Text style={styles.topText}>FRIDAY NIGHT DINNER</Text>
-          <Text style={styles.bottomText}>5 Matches Found</Text>
+          <Text style={styles.bottomText}>Veto</Text>
         </View>
 
         <MyButton style={styles.sideButton} onClick={() => {}}>
@@ -82,71 +57,54 @@ const ResultScreen = () => {
         </MyButton>
       </View>
       <View style={styles.middleContainer}>
-        <Text style={styles.shortList}>The Shortlist</Text>
-        <Text style={styles.shortDesc}>
-          Your group has agreed on these spots. Review the options before locking in your choice.
-        </Text>
+        <Text style={styles.shortDesc}>THE VERDICT</Text>
+        <Text style={styles.shortList}>L'Artusi</Text>
       </View>
 
       <View style={styles.scrollContent}>
-        <ScrollView
-          horizontal={true}
-          decelerationRate="fast"
-          snapToAlignment="start"
-          snapToInterval={width * 0.8 + 20}
-          showsHorizontalScrollIndicator={false}
-          style={styles.scrollSettings}
-        >
-          {CARDS.map((card) => (
-            <View key={card.id} style={{ flexDirection: "row" }}>
-              <Card
-                header={card.header}
-                imageURL={card.imageURL}
-                label={card.label}
-                description={card.description}
-              />
-            </View>
-          ))}
-        </ScrollView>
-      </View>
-      <View style={styles.bottomContainer}>
-        <Text style={styles.topText}>Waiting for others...</Text>
-        <View style={styles.imageStack}>
+        <View style={styles.card}>
           <Image
-            style={[styles.userImage, { zIndex: 1 }]}
-            source={require("../assets/images/sam.jpg")}
+            style={styles.cardImage}
+            source={{
+              uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuCKvTy_KJ2gsdd6rU7JAaWU4m_HxoR837Eo5DAwfGl90jv_VMy0SOKOVYiLycJ9jM1sNvmadq_69DJCtkrLGLew92M_mDloSo1uOq5OgEGrZ7BXR8RTR7Xdlsv4bvxIvFrPDHhI_UzCmNY1K5cXKFGkBzdEknG3vOz0CiROd2ShK_REyaYYITBSwO6qh2AVLzVZCvoss_eCcBF6ipJLFiiyej0bOmlEtLHW0JaSwACjQoCBieMdR_Li2q-1Fi1tUTFihaTWG4Kyt1DF",
+            }}
           />
-          <Image
-            style={[styles.userImage, { zIndex: 2 }]}
-            source={require("../assets/images/tt.png")}
-          />
-        </View>
-        {/**
-         *         <View>
-          <Image source={require("../assets/images/sam.png")} />
-        </View>
-         */}
-        {/**
-           *{FRIENDS.map((friend) => (
-            <View key={friend.id}>
-              <Image source={require(friend.imageURL)} />
-              {friend.isReady && (
-                <View>
-                  <Image source={require("../assets/images/checkbox.png")} />
-                </View>
-              )}
+
+          <Text style={styles.headerText}>{"Italian • West Village "}</Text>
+
+          <View style={{ flexDirection: "row", gap: 8, marginLeft: 18, marginTop: 10 }}>
+            <Feather name="map-pin" size={16} color="black" />
+            <Text style={styles.descriptionText}>{"228 W 10th St, New York, NY 10014"}</Text>
+          </View>
+          <View style={{ flexDirection: "row" }}>
+            <View style={styles.label}>
+              <Text style={styles.labelText}>{"$$$$"}</Text>
             </View>
-          ))}
-           */}
+            <View style={styles.label}>
+              <Text style={styles.labelText}>{"Pasta"}</Text>
+            </View>
+            <View style={styles.label}>
+              <Text style={styles.labelText}>{"Wine Bar"}</Text>
+            </View>
+          </View>
+        </View>
       </View>
-      <View style={{ marginLeft: 15 }}>
+      <View style={{ marginLeft: 30, marginTop: 50 }}>
         <MyButton
           onClick={() => router.push("/matched")}
-          style={{ width: 370, height: 56, justifyContent: "center" }}
+          style={{ width: 350, height: 60, justifyContent: "center" }}
         >
-          <Text style={{ color: "white", fontSize: 16, fontWeight: "bold" }}>I'm Ready</Text>
-          <Feather name="user-check" size={16} color="white" />
+          <Text style={{ color: "white", fontSize: 16, fontWeight: "bold" }}>GET DIRECTIONS</Text>
+          <Feather name="corner-up-right" size={16} color="white" />
         </MyButton>
+      </View>
+      <View style={{ flexDirection: "row", marginLeft: 15, marginTop: 15 }}>
+        <TouchableOpacity style={styles.reserveButton}>
+          <Text style={{ color: "black", fontSize: 16, fontWeight: "bold" }}>RESERVE A TABLE</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.callButton}>
+          <Feather name="phone" size={16} color="black" />
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -200,22 +158,24 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     alignItems: "center",
+    justifyContent: "center",
   },
   middleContainer: {
     alignItems: "center",
     paddingHorizontal: 40,
-    paddingTop: 30,
+    paddingTop: 15,
   },
   shortList: {
     fontFamily: "Newsreader_600SemiBold",
     fontSize: 45,
     color: "#000",
     textAlign: "center",
+    marginTop: 5,
   },
   shortDesc: {
     fontFamily: "Inter_400Regular",
     fontSize: 15,
-    color: "#444",
+    color: "#8B5A83",
     marginTop: 10,
     lineHeight: 22,
     textAlign: "center",
@@ -228,7 +188,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 25,
     alignItems: "center",
-    marginTop: 50,
+    marginTop: 40,
   },
   userImage: {
     width: 40,
@@ -240,6 +200,75 @@ const styles = StyleSheet.create({
   imageStack: {
     flexDirection: "row",
   },
+  reserveButton: {
+    backgroundColor: "white",
+    width: 275,
+    height: 60,
+    justifyContent: "center",
+    borderRadius: 32,
+    borderColor: "black",
+    borderWidth: 1,
+    //justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginLeft: 15,
+  },
+  callButton: {
+    marginLeft: 15,
+    backgroundColor: "white",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "black",
+  },
+  card: {
+    marginTop: 35,
+    marginLeft: 10,
+    marginRight: 10,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#aaaaaa80",
+    borderRadius: 50,
+    borderWidth: 1,
+    width: 350,
+    height: 385,
+    overflow: "hidden",
+  },
+  cardImage: {
+    width: "100%",
+    height: 250,
+    resizeMode: "cover",
+  },
+  label: {
+    marginTop: 10,
+    marginLeft: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    backgroundColor: "#dedede",
+    borderRadius: 30,
+    alignSelf: "flex-start",
+    borderColor: "#9d9a9a",
+    borderWidth: 0.75,
+    justifyContent: "center",
+  },
+  labelText: {
+    fontFamily: "Inter_400Regular",
+    color: "#000000",
+    fontSize: 12,
+  },
+  headerText: {
+    fontFamily: "Newsreader_600SemiBold",
+    fontSize: 25,
+    color: "#000",
+    marginTop: 15,
+    marginLeft: 20,
+  },
+  location: {},
+  description: {},
+  descriptionText: {},
 });
 
-export default ResultScreen;
+export default MatchScreen;

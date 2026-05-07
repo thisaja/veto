@@ -1,15 +1,6 @@
-import {
-  Inter_400Regular,
-  Inter_700Bold,
-  useFonts,
-} from "@expo-google-fonts/inter";
+import { Inter_400Regular, Inter_700Bold, useFonts } from "@expo-google-fonts/inter";
 import { ReactNode } from "react";
-import {
-  StyleProp,
-  StyleSheet,
-  TouchableOpacity,
-  ViewStyle,
-} from "react-native";
+import { StyleProp, StyleSheet, TouchableOpacity, ViewStyle } from "react-native";
 const buttonStyles = StyleSheet.create({
   baseButtonStyle: {
     width: 256,
@@ -34,10 +25,7 @@ const MyButton = ({ children, onClick, style }: MyButtonProps) => {
     Inter_700Bold,
   });
   return (
-    <TouchableOpacity
-      onPress={() => onClick()}
-      style={[buttonStyles.baseButtonStyle, style]}
-    >
+    <TouchableOpacity onPress={() => onClick()} style={[buttonStyles.baseButtonStyle, style]}>
       {children}
     </TouchableOpacity>
   );
