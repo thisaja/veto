@@ -63,7 +63,7 @@ const LandingScreen = () => {
           </View>
           <View style={{ gap: 12, width: "100%" }}>
             <MyButton
-              onClick={() => router.push("/register")}
+              onClick={() => router.push("/(register)")}
               style={{ height: 48, width: "100%" }}
             >
               <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: "white" }}>
