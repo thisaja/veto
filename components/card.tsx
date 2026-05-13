@@ -6,27 +6,20 @@ import { Image, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 interface MyCardProps {
-  onClick?: () => void;
-  width?: number;
-  height?: number;
-  backgroundColour?: string;
   header?: string;
   imageURL?: string;
   label?: string;
   description?: string;
 }
 
-const Card = ({
-  onClick,
-  header,
-  imageURL,
-  label,
-  description,
-}: MyCardProps) => {
+const Card = ({ header, imageURL, label, description }: MyCardProps) => {
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Newsreader_400Regular,
   });
+
+  if (!fontsLoaded) return null;
+
   return (
     <SafeAreaProvider>
       <View style={styles.container}>
@@ -35,12 +28,10 @@ const Card = ({
         <View style={styles.label}>
           <Text style={styles.labelText}>{label}</Text>
         </View>
+
         <Text style={styles.headerText}>{header}</Text>
-        <Text
-          style={styles.descriptionText}
-          numberOfLines={2}
-          ellipsizeMode="tail"
-        >
+
+        <Text style={styles.descriptionText} numberOfLines={3} ellipsizeMode="tail">
           {description}
         </Text>
       </View>
@@ -49,54 +40,53 @@ const Card = ({
 };
 
 const styles = StyleSheet.create({
-  image: {
-    width: 350,
-    height: 250,
-    borderTopLeftRadius: 50,
-    borderTopRightRadius: 50,
-    resizeMode: "cover",
-  },
   container: {
-    marginTop: 50,
-    marginBottom: 50,
-    marginLeft: 28,
-    marginRight: 50,
+    marginTop: 35,
+    marginLeft: 10,
+    marginRight: 10,
     backgroundColor: "#FFFFFF",
     borderColor: "#aaaaaa80",
     borderRadius: 50,
     borderWidth: 1,
     width: 350,
-    height: 400,
+    height: 450,
+    overflow: "hidden",
+  },
+  image: {
+    width: "100%",
+    height: 250,
+    resizeMode: "cover",
   },
   label: {
-    marginTop: 7,
-    marginBottom: 7,
-    marginLeft: 7,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    marginTop: 20,
+    marginLeft: 25,
+    paddingHorizontal: 15,
+    paddingVertical: 5,
     backgroundColor: "#000000",
     borderRadius: 30,
-    width: 80,
-    height: 25,
-    justifyContent: "center",
-    alignItems: "center",
+    alignSelf: "flex-start",
   },
   labelText: {
     color: "#FFFFFF",
     fontWeight: "bold",
     fontSize: 12,
+    textTransform: "uppercase",
   },
   headerText: {
-    fontSize: 30,
-    marginLeft: 7,
-    fontWeight: "bold",
-    fontFamily: "Inter_400Regular",
+    fontSize: 32,
+    marginLeft: 25,
+    marginTop: 15,
+    fontFamily: "Newsreader_400Regular",
+    color: "#000000",
   },
   descriptionText: {
     fontFamily: "Inter_400Regular",
-    marginLeft: 7,
-    marginTop: 7,
-    marginRight: 7,
+    marginLeft: 25,
+    marginRight: 25,
+    marginTop: 10,
+    fontSize: 15,
+    lineHeight: 20,
+    color: "#444444",
   },
 });
 

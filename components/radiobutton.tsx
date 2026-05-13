@@ -1,16 +1,30 @@
-import { Text, View } from "react-native";
+import { Text, TextStyle, View } from "react-native";
 import MyButton from "./button";
 
 interface RadiobuttonProps {
   options: string[];
   onClick: (val: string) => void;
   value: string;
+  fontFamily?: string;
 }
-const Radiobutton = ({ options, onClick, value }: RadiobuttonProps) => {
+
+const Radiobutton = ({
+  options,
+  onClick,
+  value,
+  fontFamily = "YourFontName",
+}: RadiobuttonProps) => {
   return (
     <View style={{ gap: 16 }}>
       {options.map((option, index) => {
         const isSelected = option === value;
+
+        const textStyle: TextStyle = {
+          fontFamily: fontFamily,
+          color: isSelected ? "white" : "#1b1c19",
+          fontSize: 17,
+        };
+
         return (
           <MyButton
             key={index}
@@ -19,9 +33,7 @@ const Radiobutton = ({ options, onClick, value }: RadiobuttonProps) => {
             }}
             style={{ backgroundColor: isSelected ? "black" : "#e4e2dd" }}
           >
-            <Text style={{ color: isSelected ? "white" : "#1b1c19" }}>
-              {option}
-            </Text>
+            <Text style={textStyle}>{option}</Text>
           </MyButton>
         );
       })}
