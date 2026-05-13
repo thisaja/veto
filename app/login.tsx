@@ -99,7 +99,7 @@ const LoginScreen = () => {
           <TouchableOpacity
             onPress={() => {
               router.dismissAll();
-              router.push("/register");
+              router.push("/(register)");
             }}
           >
             <Text

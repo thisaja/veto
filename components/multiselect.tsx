@@ -1,5 +1,5 @@
 import { Inter_400Regular, Inter_500Medium, useFonts } from "@expo-google-fonts/inter";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
 
 import MyButton from "./button";
@@ -7,6 +7,8 @@ import MyButton from "./button";
 interface MultiselectProps {
   options: string[];
   style?: StyleProp<ViewStyle>;
+  defaultValue?: number[];
+  onClick?: (selectedOptions: number[]) => void;
 }
 const multiselectStyles = StyleSheet.create({
   baseMultiselectStyle: {
@@ -17,12 +19,15 @@ const multiselectStyles = StyleSheet.create({
     gap: 8,
   },
 });
-const Multiselect = ({ style, options }: MultiselectProps) => {
+const Multiselect = ({ style, options, onClick, defaultValue = [] }: MultiselectProps) => {
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
   });
-  const [selectedOptions, setSelectedOptions] = useState<number[]>([]);
+  const [selectedOptions, setSelectedOptions] = useState<number[]>(defaultValue);
+  useEffect(() => {
+    if (onClick) onClick(selectedOptions);
+  }, [selectedOptions]);
 
   const clickOption = (index: number) => {
     if (selectedOptions.includes(index)) {
