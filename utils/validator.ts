@@ -3,11 +3,6 @@ export const validateEmail = (email?: string) => {
   const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return regex.test(email);
 };
-export const validatePhoneNumber = (phoneNumber?: string) => {
-  if (!phoneNumber) return false;
-  const regex = /^\d{3}-\d{3}-\d{4}$/;
-  return regex.test(phoneNumber);
-};
 export const validateName = (name?: string) => {
   if (!name) return false;
   const regex = /^[a-zA-Z]+$/;

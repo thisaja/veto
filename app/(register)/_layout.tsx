@@ -1,12 +1,12 @@
-import { User, UserError } from "@/types/user";
+import { UserRegisterDetails, UserRegisterErrors } from "@/types/user";
 import { Stack } from "expo-router";
 import { createContext, useContext, useState } from "react";
 
 interface UserDetailsContextType {
-  userDetails: User | undefined;
-  setUserDetails: React.Dispatch<React.SetStateAction<User | undefined>>;
-  userErrors: UserError;
-  setUserErrors: React.Dispatch<React.SetStateAction<UserError>>;
+  userDetails: UserRegisterDetails | undefined;
+  setUserDetails: React.Dispatch<React.SetStateAction<UserRegisterDetails | undefined>>;
+  userErrors: UserRegisterErrors;
+  setUserErrors: React.Dispatch<React.SetStateAction<UserRegisterErrors>>;
 }
 const UserDetailsContext = createContext<UserDetailsContextType | undefined>(undefined);
 export const useUserDetailsContext = () => {
@@ -17,13 +17,13 @@ export const useUserDetailsContext = () => {
   return context;
 };
 const RegisterLayout = () => {
-  const [userDetails, setUserDetails] = useState<User | undefined>();
-  const [userErrors, setUserErrors] = useState<UserError>({
+  const [userDetails, setUserDetails] = useState<UserRegisterDetails | undefined>();
+  const [userErrors, setUserErrors] = useState<UserRegisterErrors>({
     FirstName: true,
     LastName: true,
-    PhoneNumber: true,
     Email: true,
     Password: true,
+    ConfirmedPassword: true,
     DiningAlias: true,
   });
   return (
