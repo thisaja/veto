@@ -1,12 +1,7 @@
 import MyButton from "@/components/button";
 import { globalStyles } from "@/constants/global";
-import { UserError } from "@/types/user";
-import {
-  validateEmail,
-  validateName,
-  validatePassword,
-  validatePhoneNumber,
-} from "@/utils/validator";
+import { UserRegisterErrors } from "@/types/user";
+import { validateEmail, validateName, validatePassword } from "@/utils/validator";
 import { Inter_400Regular, Inter_600SemiBold } from "@expo-google-fonts/inter";
 import {
   Newsreader_400Regular,
@@ -35,21 +30,23 @@ const Step1Screen = () => {
   const router = useRouter();
 
   const handleContinue = () => {
-    const newUserErrors: UserError = {
+    const newUserErrors: UserRegisterErrors = {
       ...userErrors,
       FirstName: validateName(userDetails?.FirstName),
       LastName: validateName(userDetails?.LastName),
-      PhoneNumber: validatePhoneNumber(userDetails?.PhoneNumber),
       Email: validateEmail(userDetails?.Email),
       Password: validatePassword(userDetails?.Password),
+      ConfirmedPassword:
+        validatePassword(userDetails?.ConfirmedPassword) &&
+        userDetails?.Password === userDetails?.ConfirmedPassword,
     };
     setUserErrors(newUserErrors);
     if (
       newUserErrors.FirstName &&
       newUserErrors.LastName &&
-      newUserErrors.PhoneNumber &&
       newUserErrors.Email &&
-      newUserErrors.Password
+      newUserErrors.Password &&
+      newUserErrors.ConfirmedPassword
     ) {
       router.push("/(register)/step2");
     }
@@ -168,24 +165,6 @@ const Step1Screen = () => {
           </View>
           <View style={{ gap: 16 }}>
             <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#4C4546" }}>
-              PHONE NUMBER
-            </Text>
-            <TextInput
-              keyboardType="phone-pad"
-              placeholder="555-555-5555"
-              style={userErrors?.PhoneNumber ? styles.textInput : styles.textInputError}
-              placeholderTextColor={"#5E5E5E"}
-              onChangeText={(newNumber) =>
-                setUserDetails({
-                  ...userDetails,
-                  PhoneNumber: newNumber,
-                })
-              }
-              defaultValue={userDetails?.PhoneNumber}
-            />
-          </View>
-          <View style={{ gap: 16 }}>
-            <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#4C4546" }}>
               EMAIL ADDRESS
             </Text>
             <TextInput
@@ -221,6 +200,27 @@ const Step1Screen = () => {
                 })
               }
               defaultValue={userDetails?.Password}
+            />
+          </View>
+          <View style={{ gap: 16 }}>
+            <View>
+              <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#4C4546" }}>
+                CONFIRM PASSWORD
+              </Text>
+            </View>
+            <TextInput
+              placeholder="••••••••"
+              textContentType="password"
+              secureTextEntry={true}
+              style={userErrors?.ConfirmedPassword ? styles.textInput : styles.textInputError}
+              placeholderTextColor={"#5E5E5E"}
+              onChangeText={(newPassword) =>
+                setUserDetails({
+                  ...userDetails,
+                  ConfirmedPassword: newPassword,
+                })
+              }
+              defaultValue={userDetails?.ConfirmedPassword}
             />
           </View>
           <MyButton onClick={handleContinue} style={{ height: 48, width: "100%" }}>

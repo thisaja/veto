@@ -40,16 +40,19 @@ const Step3Screen = () => {
       formData.append("photo", image as any);
     }
     try {
-      const response = await fetch("http://localhost:5000/user", {
+      const response = await fetch("http://localhost:5000/register", {
         method: "POST",
         body: formData,
       });
-      const json = await response.json();
-      console.log(json);
+      if (!response.ok) {
+        const e = new Error();
+        e.message = await response.json();
+        throw e;
+      }
       router.dismissAll();
       router.replace("/(tabs)");
     } catch (error) {
-      console.error("something went wrong", error);
+      if (error instanceof Error) console.log(error.message);
     }
   };
 
