@@ -31,7 +31,7 @@ const Card = ({ header, imageURL, label, description }: MyCardProps) => {
 
         <Text style={styles.headerText}>{header}</Text>
 
-        <Text style={styles.descriptionText}>
+        <Text style={styles.descriptionText} numberOfLines={3} ellipsizeMode="tail">
           {description}
         </Text>
       </View>
@@ -46,8 +46,8 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     borderWidth: 1,
     width: 340,
+    height: 450,
     overflow: "hidden",
-    paddingBottom: 28,
   },
   image: {
     width: "100%",
