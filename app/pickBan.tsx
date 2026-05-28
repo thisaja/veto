@@ -157,9 +157,15 @@ const PickBanScreen = () => {
                   <View style={styles.divider} />
 
                   {isBanned ? (
-                    <View style={styles.eliminatedButton}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.eliminatedButton,
+                        pressed && styles.vetoButtonPressed,
+                      ]}
+                      onPress={() => handleVeto(r.id)}
+                    >
                       <Text style={styles.eliminatedText}>Eliminated (1 Vote)</Text>
-                    </View>
+                    </Pressable>
                   ) : (
                     <Pressable
                       style={({ pressed }) => [
