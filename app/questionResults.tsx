@@ -9,13 +9,11 @@ import {
 } from "@expo-google-fonts/newsreader";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Dimensions,
   Image,
   Modal,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -30,7 +28,7 @@ const CARD_WIDTH = 340;
 const CARD_MARGIN = 12;
 const CARD_SLOT = CARD_WIDTH + CARD_MARGIN * 2;
 const SCROLL_PADDING = (width - CARD_WIDTH) / 2 - CARD_MARGIN;
-const GALLERY_HEIGHT = 260;
+const HERO_HEIGHT = 260;
 
 type Restaurant = {
   id: number;
@@ -38,6 +36,8 @@ type Restaurant = {
   imageURL: string;
   imageURLs?: string[];
   label: string;
+  priceRange?: string;
+  rating?: string;
   caption: string;
   popularItems?: string[];
 };
@@ -46,8 +46,6 @@ const ResultScreen = () => {
   const router = useRouter();
   const { restaurants: restaurantsParam } = useLocalSearchParams<{ restaurants: string }>();
   const [selectedCard, setSelectedCard] = useState<Restaurant | null>(null);
-  const [activeImageIdx, setActiveImageIdx] = useState(0);
-  const galleryRef = useRef<ScrollView>(null);
 
   const restaurants: Restaurant[] = useMemo(() => {
     try {
@@ -68,25 +66,7 @@ const ResultScreen = () => {
 
   if (!fontsLoaded) return null;
 
-  const openCard = (card: Restaurant) => {
-    setActiveImageIdx(0);
-    setSelectedCard(card);
-    // scroll gallery back to first image when re-opening
-    galleryRef.current?.scrollTo({ x: 0, animated: false });
-  };
-
-  const onGalleryScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const idx = Math.round(e.nativeEvent.contentOffset.x / width);
-    setActiveImageIdx(idx);
-  };
-
-  // Images to display in the gallery — prefer the full array, fall back to single
-  const modalImages: string[] = selectedCard
-    ? (
-        (selectedCard.imageURLs?.length ? selectedCard.imageURLs : [selectedCard.imageURL])
-          .filter(Boolean)
-      )
-    : [];
+  const heroImage = selectedCard?.imageURLs?.[0] ?? selectedCard?.imageURL ?? "";
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -136,12 +116,14 @@ const ResultScreen = () => {
               <Pressable
                 key={card.id}
                 style={{ marginHorizontal: CARD_MARGIN }}
-                onPress={() => openCard(card)}
+                onPress={() => setSelectedCard(card)}
               >
                 <Card
                   header={card.header}
                   imageURL={card.imageURLs?.[0] ?? card.imageURL}
                   label={card.label}
+                  priceRange={card.priceRange}
+                  rating={card.rating}
                   description={card.caption}
                 />
               </Pressable>
@@ -154,8 +136,14 @@ const ResultScreen = () => {
       <View style={styles.bottomContainer}>
         <Text style={styles.topText}>Waiting for others...</Text>
         <View style={styles.imageStack}>
-          <Image style={[styles.userImage, { zIndex: 1 }]} source={require("../assets/images/sam.jpg")} />
-          <Image style={[styles.userImage, { zIndex: 2 }]} source={require("../assets/images/tt.png")} />
+          <Image
+            style={[styles.userImage, { zIndex: 1 }]}
+            source={require("../assets/images/sam.jpg")}
+          />
+          <Image
+            style={[styles.userImage, { zIndex: 2 }]}
+            source={require("../assets/images/tt.png")}
+          />
         </View>
       </View>
 
@@ -174,53 +162,22 @@ const ResultScreen = () => {
         onRequestClose={() => setSelectedCard(null)}
       >
         <View style={styles.modalRoot}>
-          {/* Dim backdrop — flex:1 fills only the space above the sheet */}
+          {/* Dim backdrop */}
           <Pressable style={styles.backdrop} onPress={() => setSelectedCard(null)} />
 
           {/* Bottom sheet */}
           <View style={styles.sheet}>
-            {/* Drag handle */}
             <View style={styles.handle} />
 
-            {/* ── Image gallery ── */}
-            <View style={styles.galleryContainer}>
-              <ScrollView
-                ref={galleryRef}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onMomentumScrollEnd={onGalleryScroll}
-                scrollEventThrottle={16}
-                style={{ height: GALLERY_HEIGHT }}
-              >
-                {modalImages.length > 0 ? (
-                  modalImages.map((uri, idx) => (
-                    <Image
-                      key={idx}
-                      source={{ uri }}
-                      style={{ width, height: GALLERY_HEIGHT, resizeMode: "cover" }}
-                    />
-                  ))
-                ) : (
-                  <View style={[{ width, height: GALLERY_HEIGHT }, styles.galleryPlaceholder]}>
-                    <Feather name="image" size={48} color="#ccc" />
-                  </View>
-                )}
-              </ScrollView>
-
-              {/* Dots */}
-              {modalImages.length > 1 && (
-                <View style={styles.dotsRow}>
-                  {modalImages.map((_, idx) => (
-                    <View
-                      key={idx}
-                      style={[styles.dot, idx === activeImageIdx && styles.dotActive]}
-                    />
-                  ))}
+            {/* Hero image */}
+            <View style={styles.heroContainer}>
+              {heroImage ? (
+                <Image source={{ uri: heroImage }} style={styles.heroImage} />
+              ) : (
+                <View style={[styles.heroImage, styles.heroPlaceholder]}>
+                  <Feather name="image" size={48} color="#ccc" />
                 </View>
               )}
-
-              {/* Close button */}
               <Pressable style={styles.closeBtn} onPress={() => setSelectedCard(null)}>
                 <View style={styles.closeBtnInner}>
                   <Feather name="x" size={18} color="white" />
@@ -228,27 +185,40 @@ const ResultScreen = () => {
               </Pressable>
             </View>
 
-            {/* ── Scrollable content ── */}
+            {/* Scrollable content */}
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.detailContent}
-              style={styles.detailScroll}
             >
-              {/* Chip + name */}
+              {/* Chips */}
               <View style={styles.chipRow}>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>{selectedCard?.label}</Text>
-                </View>
+                {selectedCard?.label && (
+                  <View style={styles.chip}>
+                    <Text style={styles.chipText}>{selectedCard.label}</Text>
+                  </View>
+                )}
+                {selectedCard?.priceRange && (
+                  <View style={[styles.chip, styles.chipOutline]}>
+                    <Text style={[styles.chipText, styles.chipTextDark]}>
+                      {selectedCard.priceRange}
+                    </Text>
+                  </View>
+                )}
+                {selectedCard?.rating && (
+                  <View style={[styles.chip, styles.chipOutline]}>
+                    <Text style={[styles.chipText, styles.chipTextDark]}>
+                      ★ {selectedCard.rating}
+                    </Text>
+                  </View>
+                )}
               </View>
-              <Text style={styles.modalName}>{selectedCard?.header}</Text>
 
+              <Text style={styles.modalName}>{selectedCard?.header}</Text>
               <View style={styles.divider} />
 
-              {/* About */}
               <Text style={styles.sectionLabel}>ABOUT</Text>
               <Text style={styles.modalDesc}>{selectedCard?.caption}</Text>
 
-              {/* Popular items */}
               {(selectedCard?.popularItems?.length ?? 0) > 0 && (
                 <>
                   <View style={styles.divider} />
@@ -384,28 +354,17 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
 
-  // Gallery
-  galleryContainer: { position: "relative" },
-  galleryPlaceholder: { backgroundColor: "#F0EEEA", justifyContent: "center", alignItems: "center" },
-  dotsRow: {
-    position: "absolute",
-    bottom: 14,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
+  // Hero image
+  heroContainer: { position: "relative" },
+  heroImage: {
+    width: "100%",
+    height: HERO_HEIGHT,
+    resizeMode: "cover",
+  },
+  heroPlaceholder: {
+    backgroundColor: "#F0EEEA",
     justifyContent: "center",
-    gap: 6,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.5)",
-  },
-  dotActive: {
-    backgroundColor: "#fff",
-    width: 18,
-    borderRadius: 3,
+    alignItems: "center",
   },
   closeBtn: { position: "absolute", top: 14, right: 14 },
   closeBtnInner: {
@@ -418,22 +377,28 @@ const styles = StyleSheet.create({
   },
 
   // Detail content
-  detailScroll: { flexGrow: 0 },
-  detailContent: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 8 },
-  chipRow: { flexDirection: "row", marginBottom: 10 },
+  detailContent: { paddingHorizontal: 24, paddingTop: 18, paddingBottom: 8 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     backgroundColor: "#000",
-    borderRadius: 30,
-    alignSelf: "flex-start",
+    borderRadius: 20,
+  },
+  chipOutline: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#d0d0d0",
   },
   chipText: {
     color: "#fff",
     fontFamily: "Inter_600SemiBold",
-    fontSize: 11,
+    fontSize: 10,
     textTransform: "uppercase",
-    letterSpacing: 1,
+    letterSpacing: 0.8,
+  },
+  chipTextDark: {
+    color: "#555",
   },
   modalName: {
     fontFamily: "Newsreader_600SemiBold",
