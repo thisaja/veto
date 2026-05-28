@@ -9,35 +9,38 @@ import {
 } from "@expo-google-fonts/newsreader";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useMemo } from "react";
 import { Dimensions, Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
-const CARDS = [
-  {
-    id: 1,
-    header: "Osteria Bianca",
-    imageURL:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBHnkYKOAbep7frBylAtCBiv3d_UfuMpT8I3PdX_C65LLgCJ_QUqyG9JsMLTmIcispI4rbXnIS4hDzamuFtTdXEloFfGxI1mIbsoXfOVJKNBTVd7qEn7jit9yq_X8EOp2wlAAyIy7YZ46eKuXpnAHQUM8zmh09F1xjcUrl-8KDhnibdU-YDA7ddmiCXKjWubxQ5fZ0x_4hkNqqTFcxAUc6NfF53Q3qxk-yUJmQrCmalct501KheeHwNZqo0Krc-ryISjiMeBuulyrwZ",
-    label: "Italian",
-    description:
-      "Handmade pasta and rare regional wines in an intimate, candlelit setting that feels miles away from the city noise.",
-  },
-  {
-    id: 2,
-    header: "Kinjo",
-    imageURL:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuCYyTDcikdaLElkYOAQ510ZSxU5_vZg_N6VTPSvOYhY9LDgEKiJifRgGBAzBLtdWZH5rNTO1BtThQJAhiCL_0Mf99ZSQK73rkv0mWQnbFq9sqOgccdwoao9hxLqqVr-k-B4TfrlMxry-2IMY9F4byBP4pjGv9IOLbf83lrHg5IKnfrFKGGH3Z7GtmTLdjX_2IfNWmrF3fU2quvDlpgpe2wWvR6CoW0Jzy-D2XMqL3qrqfR9SKuZJLWl2r_yx66sJP00arbl-1f0Hgqs",
-    label: "OMAKASE",
-    description:
-      "A transcendent 15-course omakase experience crafted by a master chef, focusing on seasonal ingredients.",
-  },
-];
+// Card is 340px wide (see card.tsx). Each card slot = card + side margins.
+const CARD_WIDTH = 340;
+const CARD_MARGIN = 12; // each side → 24px total gap between cards
+const CARD_SLOT = CARD_WIDTH + CARD_MARGIN * 2;
+// Center the first and last card by padding the scroll content
+const SCROLL_PADDING = (width - CARD_WIDTH) / 2 - CARD_MARGIN;
+
+type Restaurant = {
+  id: number;
+  header: string;
+  imageURL: string;
+  label: string;
+  caption: string;
+};
 
 const ResultScreen = () => {
   const router = useRouter();
-  const { qa } = useLocalSearchParams<{ qa: string }>();
+  const { restaurants: restaurantsParam } = useLocalSearchParams<{ restaurants: string }>();
+
+  const restaurants: Restaurant[] = useMemo(() => {
+    try {
+      return restaurantsParam ? JSON.parse(restaurantsParam) : [];
+    } catch {
+      return [];
+    }
+  }, [restaurantsParam]);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -51,7 +54,8 @@ const ResultScreen = () => {
   if (!fontsLoaded) return null;
 
   return (
-    <SafeAreaView className="h-full bg-white" style={{ justifyContent: "center" }}>
+    <SafeAreaView style={styles.screen}>
+      {/* Header */}
       <View style={styles.header}>
         <MyButton style={styles.sideButton} onClick={() => router.back()}>
           <Feather name="arrow-left" size={24} color="black" />
@@ -59,7 +63,7 @@ const ResultScreen = () => {
 
         <View style={styles.titleContainer}>
           <Text style={styles.topText}>FRIDAY NIGHT DINNER</Text>
-          <Text style={styles.bottomText}>5 Matches Found</Text>
+          <Text style={styles.bottomText}>{restaurants.length} Matches Found</Text>
         </View>
 
         <MyButton style={styles.sideButton} onClick={() => {}}>
@@ -69,6 +73,7 @@ const ResultScreen = () => {
         </MyButton>
       </View>
 
+      {/* Title */}
       <View style={styles.middleContainer}>
         <Text style={styles.shortList}>The Shortlist</Text>
         <Text style={styles.shortDesc}>
@@ -76,28 +81,39 @@ const ResultScreen = () => {
         </Text>
       </View>
 
-      <View style={styles.scrollContent}>
+      {/* Card scroll — snaps one card at a time, centered */}
+      <View style={styles.scrollWrapper}>
         <ScrollView
-          horizontal={true}
+          horizontal
           decelerationRate="fast"
           snapToAlignment="start"
-          snapToInterval={width * 0.8 + 20}
+          snapToInterval={CARD_SLOT}
           showsHorizontalScrollIndicator={false}
-          style={styles.scrollSettings}
+          contentContainerStyle={[
+            styles.scrollContainer,
+            { paddingHorizontal: Math.max(SCROLL_PADDING, 8) },
+          ]}
         >
-          {CARDS.map((card) => (
-            <View key={card.id} style={{ flexDirection: "row" }}>
-              <Card
-                header={card.header}
-                imageURL={card.imageURL}
-                label={card.label}
-                description={card.description}
-              />
+          {restaurants.length === 0 ? (
+            <View style={[styles.emptyState, { width: CARD_WIDTH }]}>
+              <Text style={styles.emptyText}>No matches found. Try adjusting your filters.</Text>
             </View>
-          ))}
+          ) : (
+            restaurants.map((card) => (
+              <View key={card.id} style={{ marginHorizontal: CARD_MARGIN }}>
+                <Card
+                  header={card.header}
+                  imageURL={card.imageURL}
+                  label={card.label}
+                  description={card.caption}
+                />
+              </View>
+            ))
+          )}
         </ScrollView>
       </View>
 
+      {/* Footer */}
       <View style={styles.bottomContainer}>
         <Text style={styles.topText}>Waiting for others...</Text>
         <View style={styles.imageStack}>
@@ -106,12 +122,9 @@ const ResultScreen = () => {
         </View>
       </View>
 
-      <View style={{ marginLeft: 15 }}>
-        <MyButton
-          onClick={() => router.push("/matched")}
-          style={{ width: 370, height: 56, justifyContent: "center" }}
-        >
-          <Text style={{ color: "white", fontSize: 16, fontWeight: "bold" }}>I'm Ready</Text>
+      <View style={styles.buttonWrapper}>
+        <MyButton onClick={() => router.push("/matched")} style={styles.readyButton}>
+          <Text style={styles.readyButtonText}>I'm Ready</Text>
           <Feather name="user-check" size={16} color="white" />
         </MyButton>
       </View>
@@ -120,6 +133,10 @@ const ResultScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -143,17 +160,17 @@ const styles = StyleSheet.create({
   },
   topText: {
     fontFamily: "Inter_400Regular",
-    fontSize: 15,
+    fontSize: 14,
     letterSpacing: 1.5,
     color: "#444",
     textAlign: "center",
   },
   bottomText: {
     fontFamily: "Newsreader_400Regular_Italic",
-    fontSize: 23,
+    fontSize: 22,
     color: "#000",
     textAlign: "center",
-    marginTop: 3,
+    marginTop: 2,
   },
   profileCircle: {
     width: 40,
@@ -165,47 +182,75 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: "#a7a7a7",
   },
-  scrollContent: {
-    alignItems: "center",
-  },
   middleContainer: {
     alignItems: "center",
     paddingHorizontal: 40,
-    paddingTop: 30,
+    paddingTop: 16,
+    paddingBottom: 4,
   },
   shortList: {
     fontFamily: "Newsreader_600SemiBold",
-    fontSize: 45,
+    fontSize: 40,
     color: "#000",
     textAlign: "center",
   },
   shortDesc: {
     fontFamily: "Inter_400Regular",
-    fontSize: 15,
+    fontSize: 13,
     color: "#444",
-    marginTop: 10,
-    lineHeight: 22,
+    marginTop: 6,
+    lineHeight: 19,
     textAlign: "center",
   },
-  scrollSettings: {
-    paddingLeft: 3,
+  scrollWrapper: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  scrollContainer: {
+    alignItems: "flex-start",
+  },
+  emptyState: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+  emptyText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    color: "#888",
+    textAlign: "center",
   },
   bottomContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 25,
+    paddingHorizontal: 24,
     alignItems: "center",
-    marginTop: 50,
+    paddingTop: 10,
+    paddingBottom: 8,
   },
   userImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     borderColor: "white",
-    borderWidth: 5,
+    borderWidth: 4,
   },
   imageStack: {
     flexDirection: "row",
+  },
+  buttonWrapper: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  readyButton: {
+    width: "100%",
+    height: 56,
+    justifyContent: "center",
+  },
+  readyButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
 

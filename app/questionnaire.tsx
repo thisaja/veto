@@ -1,8 +1,9 @@
 import Progress from "@/components/progress";
 import Radiobutton from "@/components/radiobutton";
-import { Inter_400Regular, useFonts } from "@expo-google-fonts/inter";
+import { Inter_400Regular, Inter_600SemiBold, useFonts } from "@expo-google-fonts/inter";
 import { Newsreader_600SemiBold } from "@expo-google-fonts/newsreader";
 import { useRouter } from "expo-router";
+import { useAuth } from "@/context/AuthContext";
 import { useSession } from "@/context/SessionContext";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
@@ -28,12 +29,14 @@ const SAMPLE_QUESTIONS: QAPair[] = [
 export default function Questionnaire() {
   const [qaPair, setQaPair] = useState<QAPair[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [counter, setCounter] = useState(0);
   const [userAnswers, setUserAnswers] = useState<string[]>([]);
   const router = useRouter();
 
-  const [fontsLoaded] = useFonts({ Inter_400Regular, Newsreader_600SemiBold });
+  const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_600SemiBold, Newsreader_600SemiBold });
   const { sessionId } = useSession();
+  const { userId } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -76,15 +79,11 @@ export default function Questionnaire() {
     if (counter > 0) setCounter(c => c - 1);
   };
 
-  const handleNext = () => {
-    // Compute the answer to use synchronously — if the user hasn't picked one,
-    // fall back to the first option. This avoids the async setState race where
-    // setUserAnswers + an immediate state read would still see the old value.
+  const handleNext = async () => {
     const selectedAnswer = userAnswers[counter]?.trim()
       ? userAnswers[counter]
       : qaPair[counter].answer[0];
 
-    // Persist the fallback into state so it's reflected on screen if the user goes back
     if (!userAnswers[counter]?.trim()) {
       setUserAnswers(prev => {
         const next = [...prev];
@@ -95,17 +94,56 @@ export default function Questionnaire() {
 
     if (counter < qaPair.length - 1) {
       setCounter(c => c + 1);
-    } else {
-      // Build final answers array using selectedAnswer for the current (last) question,
-      // since the setState above may not have landed yet
-      const finalAnswers = [...userAnswers];
-      finalAnswers[counter] = selectedAnswer;
+      return;
+    }
+
+    // Last question — build final answers, submit, and fetch restaurant recommendations
+    const finalAnswers = [...userAnswers];
+    finalAnswers[counter] = selectedAnswer;
+
+    const formattedAnswers = qaPair.map((q, i) => ({
+      id: q.id,
+      question: q.question,
+      answer: finalAnswers[i] || q.answer[0],
+    }));
+
+    setIsSubmitting(true);
+
+    try {
+      // Save answers to DB (best-effort — guests skip DB write on the backend)
+      await fetch("http://10.0.0.129:5000/api/gemini/submitAnswer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          answers: formattedAnswers.map(a => ({ id: a.id, value: a.answer })),
+        }),
+      });
+    } catch (err) {
+      console.error("submitAnswer failed:", err);
+    }
+
+    try {
+      const restaurantRes = await fetch("http://10.0.0.129:5000/api/gemini/restaurant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userAnswers: formattedAnswers }),
+      });
+      const restaurantJson = await restaurantRes.json();
+      const restaurants = Array.isArray(restaurantJson.data) ? restaurantJson.data : [];
+
       router.push({
         pathname: "/questionResults",
-        params: {
-          qa: JSON.stringify([qaPair.map(q => q.question), finalAnswers]),
-        },
+        params: { restaurants: JSON.stringify(restaurants) },
       });
+    } catch (err) {
+      console.error("getRestaurant failed:", err);
+      router.push({
+        pathname: "/questionResults",
+        params: { restaurants: JSON.stringify([]) },
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -164,6 +202,13 @@ export default function Questionnaire() {
         </View>
 
       </View>
+
+      {isSubmitting && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#4C4546" />
+          <Text style={styles.loadingText}>Finding your matches...</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -247,5 +292,18 @@ const styles = StyleSheet.create({
   progressContainer: {
     alignItems: "center",
     paddingBottom: 8,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255, 255, 255, 0.88)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#4C4546",
+    fontFamily: "Inter_600SemiBold",
   },
 });
