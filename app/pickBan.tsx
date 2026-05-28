@@ -6,7 +6,7 @@ import {
   Newsreader_500Medium,
   Newsreader_600SemiBold,
 } from "@expo-google-fonts/newsreader";
-import { Feather, MaterialIcons } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -174,7 +174,7 @@ const PickBanScreen = () => {
                       ]}
                       onPress={() => handleVeto(r.id)}
                     >
-                      <MaterialIcons name="block" size={18} color="#555" />
+                      <Ionicons name="ban-outline" size={18} color="#555" />
                       <Text style={styles.vetoButtonText}>Veto This Option</Text>
                     </Pressable>
                   )}
@@ -392,11 +392,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 13,
+    paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#bdbdbd",
+    borderWidth: 1.5,
+    borderColor: "#c0c0c0",
+    backgroundColor: "#ffffff",
   },
   vetoButtonPressed: { backgroundColor: "#f3f3f3" },
   vetoButtonText: {
