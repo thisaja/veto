@@ -9,17 +9,24 @@ import {
 } from "@expo-google-fonts/newsreader";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo } from "react";
-import { Dimensions, Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useMemo, useState } from "react";
+import {
+  Dimensions,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
-// Card is 340px wide (see card.tsx). Each card slot = card + side margins.
 const CARD_WIDTH = 340;
-const CARD_MARGIN = 12; // each side → 24px total gap between cards
+const CARD_MARGIN = 12;
 const CARD_SLOT = CARD_WIDTH + CARD_MARGIN * 2;
-// Center the first and last card by padding the scroll content
 const SCROLL_PADDING = (width - CARD_WIDTH) / 2 - CARD_MARGIN;
 
 type Restaurant = {
@@ -33,6 +40,7 @@ type Restaurant = {
 const ResultScreen = () => {
   const router = useRouter();
   const { restaurants: restaurantsParam } = useLocalSearchParams<{ restaurants: string }>();
+  const [selectedCard, setSelectedCard] = useState<Restaurant | null>(null);
 
   const restaurants: Restaurant[] = useMemo(() => {
     try {
@@ -55,17 +63,15 @@ const ResultScreen = () => {
 
   return (
     <SafeAreaView style={styles.screen}>
-      {/* Header */}
+      {/* ── Header ── */}
       <View style={styles.header}>
         <MyButton style={styles.sideButton} onClick={() => router.back()}>
           <Feather name="arrow-left" size={24} color="black" />
         </MyButton>
-
         <View style={styles.titleContainer}>
           <Text style={styles.topText}>FRIDAY NIGHT DINNER</Text>
           <Text style={styles.bottomText}>{restaurants.length} Matches Found</Text>
         </View>
-
         <MyButton style={styles.sideButton} onClick={() => {}}>
           <View style={styles.profileCircle}>
             <Feather name="user" size={20} color="#5b5b5b" />
@@ -73,7 +79,7 @@ const ResultScreen = () => {
         </MyButton>
       </View>
 
-      {/* Title */}
+      {/* ── Title ── */}
       <View style={styles.middleContainer}>
         <Text style={styles.shortList}>The Shortlist</Text>
         <Text style={styles.shortDesc}>
@@ -81,7 +87,7 @@ const ResultScreen = () => {
         </Text>
       </View>
 
-      {/* Card scroll — snaps one card at a time, centered */}
+      {/* ── Card scroll — vertically centred, snaps one card at a time ── */}
       <View style={styles.scrollWrapper}>
         <ScrollView
           horizontal
@@ -100,20 +106,24 @@ const ResultScreen = () => {
             </View>
           ) : (
             restaurants.map((card) => (
-              <View key={card.id} style={{ marginHorizontal: CARD_MARGIN }}>
+              <Pressable
+                key={card.id}
+                style={{ marginHorizontal: CARD_MARGIN }}
+                onPress={() => setSelectedCard(card)}
+              >
                 <Card
                   header={card.header}
                   imageURL={card.imageURL}
                   label={card.label}
                   description={card.caption}
                 />
-              </View>
+              </Pressable>
             ))
           )}
         </ScrollView>
       </View>
 
-      {/* Footer */}
+      {/* ── Footer ── */}
       <View style={styles.bottomContainer}>
         <Text style={styles.topText}>Waiting for others...</Text>
         <View style={styles.imageStack}>
@@ -128,6 +138,98 @@ const ResultScreen = () => {
           <Feather name="user-check" size={16} color="white" />
         </MyButton>
       </View>
+
+      {/* ── Detail modal ── */}
+      <Modal
+        visible={!!selectedCard}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedCard(null)}
+      >
+        <View style={styles.modalRoot}>
+          {/* Dim backdrop — tap to close */}
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelectedCard(null)}>
+            <View style={styles.backdrop} />
+          </Pressable>
+
+          {/* Bottom sheet — absorbs taps so they don't reach the backdrop */}
+          <Pressable style={styles.sheet} onPress={() => {}}>
+            {/* Drag handle */}
+            <View style={styles.handle} />
+
+            {/* Hero image with close button */}
+            <View style={styles.heroContainer}>
+              {selectedCard?.imageURL ? (
+                <Image source={{ uri: selectedCard.imageURL }} style={styles.heroImage} />
+              ) : (
+                <View style={[styles.heroImage, styles.heroPlaceholder]}>
+                  <Feather name="image" size={40} color="#ccc" />
+                </View>
+              )}
+              <Pressable style={styles.closeBtn} onPress={() => setSelectedCard(null)}>
+                <View style={styles.closeBtnInner}>
+                  <Feather name="x" size={18} color="white" />
+                </View>
+              </Pressable>
+            </View>
+
+            {/* Scrollable detail content */}
+            <ScrollView
+              style={styles.detailScroll}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.detailContent}
+            >
+              {/* Label chip + name */}
+              <View style={styles.chipRow}>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>{selectedCard?.label}</Text>
+                </View>
+              </View>
+              <Text style={styles.modalName}>{selectedCard?.header}</Text>
+
+              {/* Divider */}
+              <View style={styles.divider} />
+
+              {/* About */}
+              <Text style={styles.sectionLabel}>ABOUT</Text>
+              <Text style={styles.modalDesc}>{selectedCard?.caption}</Text>
+
+              {/* Divider */}
+              <View style={styles.divider} />
+
+              {/* Action buttons */}
+              <View style={styles.actionRow}>
+                <View style={styles.actionBtn}>
+                  <View style={styles.actionIcon}>
+                    <Feather name="map-pin" size={20} color="#1B1B1B" />
+                  </View>
+                  <Text style={styles.actionLabel}>Directions</Text>
+                </View>
+                <View style={styles.actionBtn}>
+                  <View style={styles.actionIcon}>
+                    <Feather name="phone" size={20} color="#1B1B1B" />
+                  </View>
+                  <Text style={styles.actionLabel}>Call</Text>
+                </View>
+                <View style={styles.actionBtn}>
+                  <View style={styles.actionIcon}>
+                    <Feather name="share-2" size={20} color="#1B1B1B" />
+                  </View>
+                  <Text style={styles.actionLabel}>Share</Text>
+                </View>
+                <View style={styles.actionBtn}>
+                  <View style={styles.actionIcon}>
+                    <Feather name="bookmark" size={20} color="#1B1B1B" />
+                  </View>
+                  <Text style={styles.actionLabel}>Save</Text>
+                </View>
+              </View>
+
+              <View style={{ height: 32 }} />
+            </ScrollView>
+          </Pressable>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -137,6 +239,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
+
+  // ── Header ──
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -182,6 +286,8 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: "#a7a7a7",
   },
+
+  // ── Title block ──
   middleContainer: {
     alignItems: "center",
     paddingHorizontal: 40,
@@ -202,12 +308,14 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     textAlign: "center",
   },
+
+  // ── Scroll ──
   scrollWrapper: {
     flex: 1,
     justifyContent: "center",
   },
   scrollContainer: {
-    alignItems: "flex-start",
+    alignItems: "center",
   },
   emptyState: {
     justifyContent: "center",
@@ -220,6 +328,8 @@ const styles = StyleSheet.create({
     color: "#888",
     textAlign: "center",
   },
+
+  // ── Footer ──
   bottomContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -251,6 +361,138 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "bold",
+  },
+
+  // ── Modal ──
+  modalRoot: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    maxHeight: height * 0.88,
+    overflow: "hidden",
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D0D0D0",
+    alignSelf: "center",
+    marginTop: 10,
+    marginBottom: 4,
+  },
+
+  // Hero image
+  heroContainer: {
+    position: "relative",
+  },
+  heroImage: {
+    width: "100%",
+    height: 240,
+    resizeMode: "cover",
+  },
+  heroPlaceholder: {
+    backgroundColor: "#F0EEEA",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeBtn: {
+    position: "absolute",
+    top: 12,
+    right: 14,
+  },
+  closeBtnInner: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // Detail content
+  detailScroll: {
+    flexGrow: 0,
+  },
+  detailContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  chipRow: {
+    flexDirection: "row",
+    marginBottom: 10,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    backgroundColor: "#000",
+    borderRadius: 30,
+    alignSelf: "flex-start",
+  },
+  chipText: {
+    color: "#fff",
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  modalName: {
+    fontFamily: "Newsreader_600SemiBold",
+    fontSize: 34,
+    color: "#1B1B1B",
+    lineHeight: 40,
+    marginBottom: 16,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#EBEBEB",
+    marginVertical: 16,
+  },
+  sectionLabel: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+    letterSpacing: 2,
+    color: "#888",
+    marginBottom: 8,
+  },
+  modalDesc: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    lineHeight: 24,
+    color: "#3A3A3A",
+  },
+
+  // Action buttons
+  actionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 4,
+  },
+  actionBtn: {
+    flex: 1,
+    alignItems: "center",
+    gap: 6,
+  },
+  actionIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#F2F0EC",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  actionLabel: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    color: "#1B1B1B",
   },
 });
 
