@@ -81,7 +81,9 @@ const ResultScreen = () => {
   };
 
   const modalImages: string[] = selectedCard
-    ? (selectedCard.imageURLs?.length ? selectedCard.imageURLs : [selectedCard.imageURL]).filter(Boolean)
+    ? (selectedCard.imageURLs?.length ? selectedCard.imageURLs : [selectedCard.imageURL]).filter(
+        Boolean,
+      )
     : [];
 
   return (
@@ -214,7 +216,10 @@ const ResultScreen = () => {
               {modalImages.length > 1 && (
                 <View style={styles.dotsRow}>
                   {modalImages.map((_, idx) => (
-                    <View key={idx} style={[styles.dot, idx === activeImageIdx && styles.dotActive]} />
+                    <View
+                      key={idx}
+                      style={[styles.dot, idx === activeImageIdx && styles.dotActive]}
+                    />
                   ))}
                 </View>
               )}
@@ -355,7 +360,7 @@ const styles = StyleSheet.create({
   },
 
   // ── Scroll ──
-  scrollWrapper: { flex: 1, justifyContent: "center" },
+  scrollWrapper: { flex: 1, justifyContent: "center", marginTop: 50 },
   scrollContainer: { alignItems: "center" },
   emptyState: { justifyContent: "center", alignItems: "center", paddingVertical: 60 },
   emptyText: { fontFamily: "Inter_400Regular", fontSize: 15, color: "#888", textAlign: "center" },
@@ -397,7 +402,11 @@ const styles = StyleSheet.create({
 
   // Gallery
   galleryContainer: { position: "relative" },
-  galleryPlaceholder: { backgroundColor: "#F0EEEA", justifyContent: "center", alignItems: "center" },
+  galleryPlaceholder: {
+    backgroundColor: "#F0EEEA",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   dotsRow: {
     position: "absolute",
     bottom: 12,
@@ -432,8 +441,8 @@ const styles = StyleSheet.create({
   detailContent: { paddingHorizontal: 24, paddingTop: 18, paddingBottom: 8 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 },
   chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     backgroundColor: "#000",
     borderRadius: 20,
   },
@@ -443,7 +452,7 @@ const styles = StyleSheet.create({
   chipText: {
     color: "#fff",
     fontFamily: "Inter_600SemiBold",
-    fontSize: 10,
+    fontSize: 12,
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },

@@ -79,8 +79,8 @@ const styles = StyleSheet.create({
     marginRight: 25,
   },
   chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     backgroundColor: "#000",
     borderRadius: 20,
   },
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     color: "#fff",
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
