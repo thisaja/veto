@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    maxHeight: height * 0.78,
+    maxHeight: height * 0.93,
     overflow: "hidden",
   },
   handle: {
@@ -438,9 +438,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   chipOutline: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "#d0d0d0",
+    backgroundColor: "#efefef",
   },
   chipText: {
     color: "#fff",
@@ -450,7 +448,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   chipTextDark: {
-    color: "#555",
+    color: "#888",
   },
   modalName: {
     fontFamily: "Newsreader_600SemiBold",

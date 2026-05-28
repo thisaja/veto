@@ -85,9 +85,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   chipOutline: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "#d0d0d0",
+    backgroundColor: "#efefef",
   },
   chipText: {
     color: "#fff",
@@ -97,7 +95,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   chipTextDark: {
-    color: "#555",
+    color: "#888",
   },
   headerText: {
     fontSize: 32,
