@@ -6,7 +6,7 @@ import {
   Newsreader_500Medium,
   Newsreader_600SemiBold,
 } from "@expo-google-fonts/newsreader";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -168,7 +168,7 @@ const PickBanScreen = () => {
                       ]}
                       onPress={() => handleVeto(r.id)}
                     >
-                      <Feather name="slash" size={16} color="#1b1b1b" />
+                      <MaterialIcons name="block" size={18} color="#1b1b1b" />
                       <Text style={styles.vetoButtonText}>Veto This Option</Text>
                     </Pressable>
                   )}
@@ -341,15 +341,20 @@ const styles = StyleSheet.create({
     color: "#1b1b1b",
   },
   voteDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#e8e8e8",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
   voteDotActive: { backgroundColor: "#1b1b1b" },
-  voteCount: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#4c4546" },
+  voteCount: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: "#4c4546" },
   voteCountActive: { color: "#fff" },
 
   // Card body
