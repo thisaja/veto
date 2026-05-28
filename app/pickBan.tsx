@@ -174,7 +174,7 @@ const PickBanScreen = () => {
                       ]}
                       onPress={() => handleVeto(r.id)}
                     >
-                      <MaterialIcons name="block" size={18} color="#1b1b1b" />
+                      <MaterialIcons name="block" size={18} color="#555" />
                       <Text style={styles.vetoButtonText}>Veto This Option</Text>
                     </Pressable>
                   )}
@@ -395,13 +395,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#1b1b1b",
+    borderColor: "#bdbdbd",
   },
   vetoButtonPressed: { backgroundColor: "#f3f3f3" },
   vetoButtonText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
-    color: "#1b1b1b",
+    color: "#555",
   },
 
   // Eliminated button
