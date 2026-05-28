@@ -387,6 +387,7 @@ const styles = StyleSheet.create({
 
   // Veto button
   vetoButton: {
+    width: "100%",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -406,6 +407,7 @@ const styles = StyleSheet.create({
 
   // Eliminated button
   eliminatedButton: {
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 13,
