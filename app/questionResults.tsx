@@ -9,11 +9,13 @@ import {
 } from "@expo-google-fonts/newsreader";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   Image,
   Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -28,7 +30,7 @@ const CARD_WIDTH = 340;
 const CARD_MARGIN = 12;
 const CARD_SLOT = CARD_WIDTH + CARD_MARGIN * 2;
 const SCROLL_PADDING = (width - CARD_WIDTH) / 2 - CARD_MARGIN;
-const HERO_HEIGHT = 260;
+const GALLERY_HEIGHT = 260;
 
 type Restaurant = {
   id: number;
@@ -46,6 +48,8 @@ const ResultScreen = () => {
   const router = useRouter();
   const { restaurants: restaurantsParam } = useLocalSearchParams<{ restaurants: string }>();
   const [selectedCard, setSelectedCard] = useState<Restaurant | null>(null);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const galleryRef = useRef<ScrollView>(null);
 
   const restaurants: Restaurant[] = useMemo(() => {
     try {
@@ -66,7 +70,19 @@ const ResultScreen = () => {
 
   if (!fontsLoaded) return null;
 
-  const heroImage = selectedCard?.imageURLs?.[0] ?? selectedCard?.imageURL ?? "";
+  const openCard = (card: Restaurant) => {
+    setActiveImageIdx(0);
+    setSelectedCard(card);
+    galleryRef.current?.scrollTo({ x: 0, animated: false });
+  };
+
+  const onGalleryScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setActiveImageIdx(Math.round(e.nativeEvent.contentOffset.x / width));
+  };
+
+  const modalImages: string[] = selectedCard
+    ? (selectedCard.imageURLs?.length ? selectedCard.imageURLs : [selectedCard.imageURL]).filter(Boolean)
+    : [];
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -116,7 +132,7 @@ const ResultScreen = () => {
               <Pressable
                 key={card.id}
                 style={{ marginHorizontal: CARD_MARGIN }}
-                onPress={() => setSelectedCard(card)}
+                onPress={() => openCard(card)}
               >
                 <Card
                   header={card.header}
@@ -169,15 +185,40 @@ const ResultScreen = () => {
           <View style={styles.sheet}>
             <View style={styles.handle} />
 
-            {/* Hero image */}
-            <View style={styles.heroContainer}>
-              {heroImage ? (
-                <Image source={{ uri: heroImage }} style={styles.heroImage} />
-              ) : (
-                <View style={[styles.heroImage, styles.heroPlaceholder]}>
-                  <Feather name="image" size={48} color="#ccc" />
+            {/* Image gallery */}
+            <View style={styles.galleryContainer}>
+              <ScrollView
+                ref={galleryRef}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={onGalleryScroll}
+                scrollEventThrottle={16}
+                style={{ height: GALLERY_HEIGHT }}
+              >
+                {modalImages.length > 0 ? (
+                  modalImages.map((uri, idx) => (
+                    <Image
+                      key={idx}
+                      source={{ uri }}
+                      style={{ width, height: GALLERY_HEIGHT, resizeMode: "cover" }}
+                    />
+                  ))
+                ) : (
+                  <View style={[{ width, height: GALLERY_HEIGHT }, styles.galleryPlaceholder]}>
+                    <Feather name="image" size={48} color="#ccc" />
+                  </View>
+                )}
+              </ScrollView>
+
+              {modalImages.length > 1 && (
+                <View style={styles.dotsRow}>
+                  {modalImages.map((_, idx) => (
+                    <View key={idx} style={[styles.dot, idx === activeImageIdx && styles.dotActive]} />
+                  ))}
                 </View>
               )}
+
               <Pressable style={styles.closeBtn} onPress={() => setSelectedCard(null)}>
                 <View style={styles.closeBtnInner}>
                   <Feather name="x" size={18} color="white" />
@@ -354,17 +395,28 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
 
-  // Hero image
-  heroContainer: { position: "relative" },
-  heroImage: {
-    width: "100%",
-    height: HERO_HEIGHT,
-    resizeMode: "cover",
-  },
-  heroPlaceholder: {
-    backgroundColor: "#F0EEEA",
+  // Gallery
+  galleryContainer: { position: "relative" },
+  galleryPlaceholder: { backgroundColor: "#F0EEEA", justifyContent: "center", alignItems: "center" },
+  dotsRow: {
+    position: "absolute",
+    bottom: 12,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
     justifyContent: "center",
-    alignItems: "center",
+    gap: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.5)",
+  },
+  dotActive: {
+    backgroundColor: "#fff",
+    width: 18,
+    borderRadius: 3,
   },
   closeBtn: { position: "absolute", top: 14, right: 14 },
   closeBtnInner: {
