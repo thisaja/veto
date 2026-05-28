@@ -174,13 +174,11 @@ const ResultScreen = () => {
         onRequestClose={() => setSelectedCard(null)}
       >
         <View style={styles.modalRoot}>
-          {/* Dim backdrop */}
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelectedCard(null)}>
-            <View style={styles.backdrop} />
-          </Pressable>
+          {/* Dim backdrop — flex:1 fills only the space above the sheet */}
+          <Pressable style={styles.backdrop} onPress={() => setSelectedCard(null)} />
 
-          {/* Bottom sheet — onStartShouldSetResponder absorbs touches */}
-          <View style={styles.sheet} onStartShouldSetResponder={() => true}>
+          {/* Bottom sheet */}
+          <View style={styles.sheet}>
             {/* Drag handle */}
             <View style={styles.handle} />
 
@@ -367,7 +365,7 @@ const styles = StyleSheet.create({
   readyButtonText: { color: "white", fontSize: 16, fontWeight: "bold" },
 
   // ── Modal ──
-  modalRoot: { flex: 1, justifyContent: "flex-end" },
+  modalRoot: { flex: 1 },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)" },
   sheet: {
     backgroundColor: "#fff",
