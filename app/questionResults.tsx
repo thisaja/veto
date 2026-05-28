@@ -9,11 +9,13 @@ import {
 } from "@expo-google-fonts/newsreader";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   Image,
   Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -28,19 +30,24 @@ const CARD_WIDTH = 340;
 const CARD_MARGIN = 12;
 const CARD_SLOT = CARD_WIDTH + CARD_MARGIN * 2;
 const SCROLL_PADDING = (width - CARD_WIDTH) / 2 - CARD_MARGIN;
+const GALLERY_HEIGHT = 320;
 
 type Restaurant = {
   id: number;
   header: string;
   imageURL: string;
+  imageURLs?: string[];
   label: string;
   caption: string;
+  popularItems?: string[];
 };
 
 const ResultScreen = () => {
   const router = useRouter();
   const { restaurants: restaurantsParam } = useLocalSearchParams<{ restaurants: string }>();
   const [selectedCard, setSelectedCard] = useState<Restaurant | null>(null);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const galleryRef = useRef<ScrollView>(null);
 
   const restaurants: Restaurant[] = useMemo(() => {
     try {
@@ -60,6 +67,26 @@ const ResultScreen = () => {
   });
 
   if (!fontsLoaded) return null;
+
+  const openCard = (card: Restaurant) => {
+    setActiveImageIdx(0);
+    setSelectedCard(card);
+    // scroll gallery back to first image when re-opening
+    galleryRef.current?.scrollTo({ x: 0, animated: false });
+  };
+
+  const onGalleryScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+    setActiveImageIdx(idx);
+  };
+
+  // Images to display in the gallery — prefer the full array, fall back to single
+  const modalImages: string[] = selectedCard
+    ? (
+        (selectedCard.imageURLs?.length ? selectedCard.imageURLs : [selectedCard.imageURL])
+          .filter(Boolean)
+      )
+    : [];
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -87,7 +114,7 @@ const ResultScreen = () => {
         </Text>
       </View>
 
-      {/* ── Card scroll — vertically centred, snaps one card at a time ── */}
+      {/* ── Card scroll ── */}
       <View style={styles.scrollWrapper}>
         <ScrollView
           horizontal
@@ -109,11 +136,11 @@ const ResultScreen = () => {
               <Pressable
                 key={card.id}
                 style={{ marginHorizontal: CARD_MARGIN }}
-                onPress={() => setSelectedCard(card)}
+                onPress={() => openCard(card)}
               >
                 <Card
                   header={card.header}
-                  imageURL={card.imageURL}
+                  imageURL={card.imageURLs?.[0] ?? card.imageURL}
                   label={card.label}
                   description={card.caption}
                 />
@@ -147,25 +174,55 @@ const ResultScreen = () => {
         onRequestClose={() => setSelectedCard(null)}
       >
         <View style={styles.modalRoot}>
-          {/* Dim backdrop — tap to close */}
+          {/* Dim backdrop */}
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelectedCard(null)}>
             <View style={styles.backdrop} />
           </Pressable>
 
-          {/* Bottom sheet — absorbs taps so they don't reach the backdrop */}
-          <Pressable style={styles.sheet} onPress={() => {}}>
+          {/* Bottom sheet — onStartShouldSetResponder absorbs touches */}
+          <View style={styles.sheet} onStartShouldSetResponder={() => true}>
             {/* Drag handle */}
             <View style={styles.handle} />
 
-            {/* Hero image with close button */}
-            <View style={styles.heroContainer}>
-              {selectedCard?.imageURL ? (
-                <Image source={{ uri: selectedCard.imageURL }} style={styles.heroImage} />
-              ) : (
-                <View style={[styles.heroImage, styles.heroPlaceholder]}>
-                  <Feather name="image" size={40} color="#ccc" />
+            {/* ── Image gallery ── */}
+            <View style={styles.galleryContainer}>
+              <ScrollView
+                ref={galleryRef}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={onGalleryScroll}
+                scrollEventThrottle={16}
+                style={{ height: GALLERY_HEIGHT }}
+              >
+                {modalImages.length > 0 ? (
+                  modalImages.map((uri, idx) => (
+                    <Image
+                      key={idx}
+                      source={{ uri }}
+                      style={{ width, height: GALLERY_HEIGHT, resizeMode: "cover" }}
+                    />
+                  ))
+                ) : (
+                  <View style={[{ width, height: GALLERY_HEIGHT }, styles.galleryPlaceholder]}>
+                    <Feather name="image" size={48} color="#ccc" />
+                  </View>
+                )}
+              </ScrollView>
+
+              {/* Dots */}
+              {modalImages.length > 1 && (
+                <View style={styles.dotsRow}>
+                  {modalImages.map((_, idx) => (
+                    <View
+                      key={idx}
+                      style={[styles.dot, idx === activeImageIdx && styles.dotActive]}
+                    />
+                  ))}
                 </View>
               )}
+
+              {/* Close button */}
               <Pressable style={styles.closeBtn} onPress={() => setSelectedCard(null)}>
                 <View style={styles.closeBtnInner}>
                   <Feather name="x" size={18} color="white" />
@@ -173,13 +230,13 @@ const ResultScreen = () => {
               </Pressable>
             </View>
 
-            {/* Scrollable detail content */}
+            {/* ── Scrollable content ── */}
             <ScrollView
-              style={styles.detailScroll}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.detailContent}
+              style={styles.detailScroll}
             >
-              {/* Label chip + name */}
+              {/* Chip + name */}
               <View style={styles.chipRow}>
                 <View style={styles.chip}>
                   <Text style={styles.chipText}>{selectedCard?.label}</Text>
@@ -187,47 +244,29 @@ const ResultScreen = () => {
               </View>
               <Text style={styles.modalName}>{selectedCard?.header}</Text>
 
-              {/* Divider */}
               <View style={styles.divider} />
 
               {/* About */}
               <Text style={styles.sectionLabel}>ABOUT</Text>
               <Text style={styles.modalDesc}>{selectedCard?.caption}</Text>
 
-              {/* Divider */}
-              <View style={styles.divider} />
+              {/* Popular items */}
+              {(selectedCard?.popularItems?.length ?? 0) > 0 && (
+                <>
+                  <View style={styles.divider} />
+                  <Text style={styles.sectionLabel}>POPULAR ITEMS</Text>
+                  {selectedCard!.popularItems!.map((item, idx) => (
+                    <View key={idx} style={styles.popularRow}>
+                      <View style={styles.popularDot} />
+                      <Text style={styles.popularItem}>{item}</Text>
+                    </View>
+                  ))}
+                </>
+              )}
 
-              {/* Action buttons */}
-              <View style={styles.actionRow}>
-                <View style={styles.actionBtn}>
-                  <View style={styles.actionIcon}>
-                    <Feather name="map-pin" size={20} color="#1B1B1B" />
-                  </View>
-                  <Text style={styles.actionLabel}>Directions</Text>
-                </View>
-                <View style={styles.actionBtn}>
-                  <View style={styles.actionIcon}>
-                    <Feather name="phone" size={20} color="#1B1B1B" />
-                  </View>
-                  <Text style={styles.actionLabel}>Call</Text>
-                </View>
-                <View style={styles.actionBtn}>
-                  <View style={styles.actionIcon}>
-                    <Feather name="share-2" size={20} color="#1B1B1B" />
-                  </View>
-                  <Text style={styles.actionLabel}>Share</Text>
-                </View>
-                <View style={styles.actionBtn}>
-                  <View style={styles.actionIcon}>
-                    <Feather name="bookmark" size={20} color="#1B1B1B" />
-                  </View>
-                  <Text style={styles.actionLabel}>Save</Text>
-                </View>
-              </View>
-
-              <View style={{ height: 32 }} />
+              <View style={{ height: 40 }} />
             </ScrollView>
-          </Pressable>
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -258,10 +297,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  titleContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  titleContainer: { alignItems: "center", justifyContent: "center" },
   topText: {
     fontFamily: "Inter_400Regular",
     fontSize: 14,
@@ -310,24 +346,10 @@ const styles = StyleSheet.create({
   },
 
   // ── Scroll ──
-  scrollWrapper: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  scrollContainer: {
-    alignItems: "center",
-  },
-  emptyState: {
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    color: "#888",
-    textAlign: "center",
-  },
+  scrollWrapper: { flex: 1, justifyContent: "center" },
+  scrollContainer: { alignItems: "center" },
+  emptyState: { justifyContent: "center", alignItems: "center", paddingVertical: 60 },
+  emptyText: { fontFamily: "Inter_400Regular", fontSize: 15, color: "#888", textAlign: "center" },
 
   // ── Footer ──
   bottomContainer: {
@@ -338,45 +360,20 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 8,
   },
-  userImage: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderColor: "white",
-    borderWidth: 4,
-  },
-  imageStack: {
-    flexDirection: "row",
-  },
-  buttonWrapper: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  readyButton: {
-    width: "100%",
-    height: 56,
-    justifyContent: "center",
-  },
-  readyButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
+  userImage: { width: 38, height: 38, borderRadius: 19, borderColor: "white", borderWidth: 4 },
+  imageStack: { flexDirection: "row" },
+  buttonWrapper: { paddingHorizontal: 16, paddingBottom: 8 },
+  readyButton: { width: "100%", height: 56, justifyContent: "center" },
+  readyButtonText: { color: "white", fontSize: 16, fontWeight: "bold" },
 
   // ── Modal ──
-  modalRoot: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
-  },
+  modalRoot: { flex: 1, justifyContent: "flex-end" },
+  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)" },
   sheet: {
     backgroundColor: "#fff",
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    maxHeight: height * 0.88,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: height * 0.9,
     overflow: "hidden",
   },
   handle: {
@@ -386,28 +383,33 @@ const styles = StyleSheet.create({
     backgroundColor: "#D0D0D0",
     alignSelf: "center",
     marginTop: 10,
-    marginBottom: 4,
+    marginBottom: 6,
   },
 
-  // Hero image
-  heroContainer: {
-    position: "relative",
-  },
-  heroImage: {
-    width: "100%",
-    height: 240,
-    resizeMode: "cover",
-  },
-  heroPlaceholder: {
-    backgroundColor: "#F0EEEA",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  closeBtn: {
+  // Gallery
+  galleryContainer: { position: "relative" },
+  galleryPlaceholder: { backgroundColor: "#F0EEEA", justifyContent: "center", alignItems: "center" },
+  dotsRow: {
     position: "absolute",
-    top: 12,
-    right: 14,
+    bottom: 14,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
   },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.5)",
+  },
+  dotActive: {
+    backgroundColor: "#fff",
+    width: 18,
+    borderRadius: 3,
+  },
+  closeBtn: { position: "absolute", top: 14, right: 14 },
   closeBtnInner: {
     width: 34,
     height: 34,
@@ -418,18 +420,9 @@ const styles = StyleSheet.create({
   },
 
   // Detail content
-  detailScroll: {
-    flexGrow: 0,
-  },
-  detailContent: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 8,
-  },
-  chipRow: {
-    flexDirection: "row",
-    marginBottom: 10,
-  },
+  detailScroll: { flexGrow: 0 },
+  detailContent: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 8 },
+  chipRow: { flexDirection: "row", marginBottom: 10 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 5,
@@ -451,17 +444,13 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     marginBottom: 16,
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#EBEBEB",
-    marginVertical: 16,
-  },
+  divider: { height: 1, backgroundColor: "#EBEBEB", marginVertical: 16 },
   sectionLabel: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 11,
     letterSpacing: 2,
     color: "#888",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   modalDesc: {
     fontFamily: "Inter_400Regular",
@@ -470,29 +459,26 @@ const styles = StyleSheet.create({
     color: "#3A3A3A",
   },
 
-  // Action buttons
-  actionRow: {
+  // Popular items
+  popularRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 4,
+    alignItems: "flex-start",
+    marginBottom: 12,
   },
-  actionBtn: {
-    flex: 1,
-    alignItems: "center",
-    gap: 6,
+  popularDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: "#1B1B1B",
+    marginTop: 8,
+    marginRight: 12,
   },
-  actionIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#F2F0EC",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  actionLabel: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
+  popularItem: {
+    fontFamily: "Newsreader_400Regular",
+    fontSize: 18,
     color: "#1B1B1B",
+    lineHeight: 24,
+    flex: 1,
   },
 });
 
