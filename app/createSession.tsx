@@ -1,3 +1,4 @@
+import { useSession } from '@/context/SessionContext';
 import { globalStyles } from '@/constants/global';
 import { Feather } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
@@ -25,6 +26,13 @@ const CreateSessionScreen = () => {
     })
     // The radius is in KM
     const [radius, setRadius] = useState<number>(3)
+    const { startSession } = useSession();
+
+    const handleSetFilters = async () => {
+        await startSession();
+        router.push("/invite");
+    };
+
     return (
         <SafeAreaView style={globalStyles.screen}>
             <Text style={{ fontFamily: "Newsreader_600SemiBold", fontSize: 24, color: "#1B1B1B" }}>
@@ -70,7 +78,7 @@ const CreateSessionScreen = () => {
                     everyone.</Text>
                 <Multiselect options={["Vegan", "Vegetarian", "Gluten-Free", "Halal", "Nut Allergy", "Kosher"]} />
             </View>
-            <MyButton onClick={() => router.push("/invite")} style={{ width: "100%", height: 56 }} >
+            <MyButton onClick={handleSetFilters} style={{ width: "100%", height: 56 }} >
                 <Text style={{ color: "white", fontSize: 16 }}>Set Filters</Text>
                 <Feather name="arrow-right" size={16} color="white" />
             </MyButton>

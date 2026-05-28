@@ -8,21 +8,38 @@ import {
   Newsreader_600SemiBold,
 } from "@expo-google-fonts/newsreader";
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Dimensions, Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
-interface MyUserProps {
-  id: number;
-  name?: string;
-  isReady?: string;
-  imageURL?: string;
-}
+const CARDS = [
+  {
+    id: 1,
+    header: "Osteria Bianca",
+    imageURL:
+      "https://lh3.googleusercontent.com/aida-public/AB6AXuBHnkYKOAbep7frBylAtCBiv3d_UfuMpT8I3PdX_C65LLgCJ_QUqyG9JsMLTmIcispI4rbXnIS4hDzamuFtTdXEloFfGxI1mIbsoXfOVJKNBTVd7qEn7jit9yq_X8EOp2wlAAyIy7YZ46eKuXpnAHQUM8zmh09F1xjcUrl-8KDhnibdU-YDA7ddmiCXKjWubxQ5fZ0x_4hkNqqTFcxAUc6NfF53Q3qxk-yUJmQrCmalct501KheeHwNZqo0Krc-ryISjiMeBuulyrwZ",
+    label: "Italian",
+    description:
+      "Handmade pasta and rare regional wines in an intimate, candlelit setting that feels miles away from the city noise.",
+  },
+  {
+    id: 2,
+    header: "Kinjo",
+    imageURL:
+      "https://lh3.googleusercontent.com/aida-public/AB6AXuCYyTDcikdaLElkYOAQ510ZSxU5_vZg_N6VTPSvOYhY9LDgEKiJifRgGBAzBLtdWZH5rNTO1BtThQJAhiCL_0Mf99ZSQK73rkv0mWQnbFq9sqOgccdwoao9hxLqqVr-k-B4TfrlMxry-2IMY9F4byBP4pjGv9IOLbf83lrHg5IKnfrFKGGH3Z7GtmTLdjX_2IfNWmrF3fU2quvDlpgpe2wWvR6CoW0Jzy-D2XMqL3qrqfR9SKuZJLWl2r_yx66sJP00arbl-1f0Hgqs",
+    label: "OMAKASE",
+    description:
+      "A transcendent 15-course omakase experience crafted by a master chef, focusing on seasonal ingredients.",
+  },
+];
 
 const ResultScreen = () => {
-  let [fontsLoaded] = useFonts({
+  const router = useRouter();
+  const { qa } = useLocalSearchParams<{ qa: string }>();
+
+  const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_600SemiBold,
     Newsreader_400Regular,
@@ -30,38 +47,8 @@ const ResultScreen = () => {
     Newsreader_600SemiBold,
     Newsreader_400Regular_Italic,
   });
-  ``;
-  const router = useRouter();
-  const FRIENDS = [
-    { id: 1, name: "Samuel", isReady: false, imageURL: "../assets/images/sam.png" },
-    { id: 2, name: "Thisaja", isReady: false, imageURL: "../assets/images/tt.png" },
-    { id: 3, name: "Hady", isReady: true, imageURL: "../assets/images/defaultUser.png" },
-    { id: 4, name: "Thomas", isReady: true, imageURL: "../assets/images/defaultUser.png" },
-  ];
-  const CARDS = [
-    {
-      id: 1,
-      header: "Osteria Bianca",
-      imageURL:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuBHnkYKOAbep7frBylAtCBiv3d_UfuMpT8I3PdX_C65LLgCJ_QUqyG9JsMLTmIcispI4rbXnIS4hDzamuFtTdXEloFfGxI1mIbsoXfOVJKNBTVd7qEn7jit9yq_X8EOp2wlAAyIy7YZ46eKuXpnAHQUM8zmh09F1xjcUrl-8KDhnibdU-YDA7ddmiCXKjWubxQ5fZ0x_4hkNqqTFcxAUc6NfF53Q3qxk-yUJmQrCmalct501KheeHwNZqo0Krc-ryISjiMeBuulyrwZ",
-      label: "Italian",
-      description:
-        "Handmade pasta and rare regional wines in an intimate, candlelit setting that feels miles away from the city noise.",
-    },
-    {
-      id: 2,
-      header: "Kinjo",
-      imageURL:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuCYyTDcikdaLElkYOAQ510ZSxU5_vZg_N6VTPSvOYhY9LDgEKiJifRgGBAzBLtdWZH5rNTO1BtThQJAhiCL_0Mf99ZSQK73rkv0mWQnbFq9sqOgccdwoao9hxLqqVr-k-B4TfrlMxry-2IMY9F4byBP4pjGv9IOLbf83lrHg5IKnfrFKGGH3Z7GtmTLdjX_2IfNWmrF3fU2quvDlpgpe2wWvR6CoW0Jzy-D2XMqL3qrqfR9SKuZJLWl2r_yx66sJP00arbl-1f0Hgqs",
-      label: "OMAKASE",
-      description:
-        "A transcendent 15-course omakase experience crafted by a master chef, focusing on seasonal ingredients.",
-    },
-  ];
 
-  if (!fontsLoaded) {
-    return null;
-  }
+  if (!fontsLoaded) return null;
 
   return (
     <SafeAreaView className="h-full bg-white" style={{ justifyContent: "center" }}>
@@ -81,6 +68,7 @@ const ResultScreen = () => {
           </View>
         </MyButton>
       </View>
+
       <View style={styles.middleContainer}>
         <Text style={styles.shortList}>The Shortlist</Text>
         <Text style={styles.shortDesc}>
@@ -109,36 +97,15 @@ const ResultScreen = () => {
           ))}
         </ScrollView>
       </View>
+
       <View style={styles.bottomContainer}>
         <Text style={styles.topText}>Waiting for others...</Text>
         <View style={styles.imageStack}>
-          <Image
-            style={[styles.userImage, { zIndex: 1 }]}
-            source={require("../assets/images/sam.jpg")}
-          />
-          <Image
-            style={[styles.userImage, { zIndex: 2 }]}
-            source={require("../assets/images/tt.png")}
-          />
+          <Image style={[styles.userImage, { zIndex: 1 }]} source={require("../assets/images/sam.jpg")} />
+          <Image style={[styles.userImage, { zIndex: 2 }]} source={require("../assets/images/tt.png")} />
         </View>
-        {/**
-         *         <View>
-          <Image source={require("../assets/images/sam.png")} />
-        </View>
-         */}
-        {/**
-           *{FRIENDS.map((friend) => (
-            <View key={friend.id}>
-              <Image source={require(friend.imageURL)} />
-              {friend.isReady && (
-                <View>
-                  <Image source={require("../assets/images/checkbox.png")} />
-                </View>
-              )}
-            </View>
-          ))}
-           */}
       </View>
+
       <View style={{ marginLeft: 15 }}>
         <MyButton
           onClick={() => router.push("/matched")}
