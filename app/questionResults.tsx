@@ -30,7 +30,7 @@ const CARD_WIDTH = 340;
 const CARD_MARGIN = 12;
 const CARD_SLOT = CARD_WIDTH + CARD_MARGIN * 2;
 const SCROLL_PADDING = (width - CARD_WIDTH) / 2 - CARD_MARGIN;
-const GALLERY_HEIGHT = 320;
+const GALLERY_HEIGHT = 260;
 
 type Restaurant = {
   id: number;
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    maxHeight: height * 0.9,
+    maxHeight: height * 0.78,
     overflow: "hidden",
   },
   handle: {
