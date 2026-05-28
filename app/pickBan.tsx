@@ -1,0 +1,413 @@
+import MyButton from "@/components/button";
+import { Inter_400Regular, Inter_600SemiBold, useFonts } from "@expo-google-fonts/inter";
+import {
+  Newsreader_400Regular,
+  Newsreader_400Regular_Italic,
+  Newsreader_500Medium,
+  Newsreader_600SemiBold,
+} from "@expo-google-fonts/newsreader";
+import { Feather } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+const TIMER_SECONDS = 15;
+
+type Restaurant = {
+  id: number;
+  header: string;
+  imageURL: string;
+  imageURLs?: string[];
+  label: string;
+  priceRange?: string;
+  rating?: string;
+  caption: string;
+  popularItems?: string[];
+};
+
+const PickBanScreen = () => {
+  const router = useRouter();
+  const { restaurants: restaurantsParam } = useLocalSearchParams<{ restaurants: string }>();
+  const [vetoedId, setVetoedId] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS);
+
+  const restaurants: Restaurant[] = useMemo(() => {
+    try {
+      return restaurantsParam ? JSON.parse(restaurantsParam) : [];
+    } catch {
+      return [];
+    }
+  }, [restaurantsParam]);
+
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_600SemiBold,
+    Newsreader_400Regular,
+    Newsreader_400Regular_Italic,
+    Newsreader_500Medium,
+    Newsreader_600SemiBold,
+  });
+
+  useEffect(() => {
+    if (timeLeft <= 0) return;
+    const interval = setInterval(() => setTimeLeft((t) => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [timeLeft]);
+
+  if (!fontsLoaded) return null;
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const handleVeto = (id: number) =>
+    setVetoedId((prev) => (prev === id ? null : id));
+
+  return (
+    <SafeAreaView style={styles.screen}>
+      {/* ── Header ── */}
+      <View style={styles.header}>
+        <MyButton style={styles.sideButton} onClick={() => router.back()}>
+          <Feather name="arrow-left" size={24} color="black" />
+        </MyButton>
+        <Text style={styles.appName}>Taster</Text>
+        <MyButton style={styles.sideButton} onClick={() => {}}>
+          <View style={styles.profileCircle}>
+            <Feather name="user" size={20} color="#5b5b5b" />
+          </View>
+        </MyButton>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* ── Hero section ── */}
+        <View style={styles.heroSection}>
+          <View style={styles.timerPill}>
+            <Feather name="clock" size={14} color="#93000a" />
+            <Text style={styles.timerText}>{formatTime(timeLeft)} REMAINING</Text>
+          </View>
+          <Text style={styles.title}>Elimination Phase</Text>
+          <Text style={styles.subtitle}>
+            Cast your veto. The restaurant with the most votes will be
+            permanently banned from this group's selection.
+          </Text>
+        </View>
+
+        {/* ── Cards ── */}
+        <View style={styles.cardsList}>
+          {restaurants.map((r) => {
+            const isBanned = r.id === vetoedId;
+            const heroImage = r.imageURLs?.[0] ?? r.imageURL;
+
+            return (
+              <View key={r.id} style={[styles.card, isBanned && styles.cardBanned]}>
+
+                {/* BANNED stamp overlay */}
+                {isBanned && (
+                  <View style={styles.bannedOverlay} pointerEvents="none">
+                    <View style={styles.bannedStamp}>
+                      <Text style={styles.bannedText}>BANNED</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Image */}
+                <View style={styles.imageBox}>
+                  <Image source={{ uri: heroImage }} style={styles.cardImage} />
+                  {/* bottom gradient simulation */}
+                  <View style={styles.imageGradient} />
+                  <View style={styles.badgesRow}>
+                    {r.rating ? (
+                      <View style={styles.ratingPill}>
+                        <Feather name="star" size={11} color="#1b1b1b" />
+                        <Text style={styles.ratingText}>{r.rating}</Text>
+                      </View>
+                    ) : (
+                      <View />
+                    )}
+                    <View style={[styles.voteDot, isBanned && styles.voteDotActive]}>
+                      <Text style={[styles.voteCount, isBanned && styles.voteCountActive]}>
+                        {isBanned ? "1" : "0"}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Content */}
+                <View style={[styles.cardBody, isBanned && styles.cardBodyBanned]}>
+                  <Text style={[styles.cardTitle, isBanned && styles.cardTitleBanned]}>
+                    {r.header}
+                  </Text>
+                  <Text style={styles.cardMeta}>
+                    {r.label}
+                    {r.priceRange ? ` • ${r.priceRange}` : ""}
+                  </Text>
+                  <View style={styles.divider} />
+
+                  {isBanned ? (
+                    <View style={styles.eliminatedButton}>
+                      <Text style={styles.eliminatedText}>Eliminated (1 Vote)</Text>
+                    </View>
+                  ) : (
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.vetoButton,
+                        pressed && styles.vetoButtonPressed,
+                      ]}
+                      onPress={() => handleVeto(r.id)}
+                    >
+                      <Feather name="slash" size={16} color="#1b1b1b" />
+                      <Text style={styles.vetoButtonText}>Veto This Option</Text>
+                    </Pressable>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: "#f9f9f9" },
+
+  // ── Header ──
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  sideButton: {
+    width: 50,
+    height: 50,
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  appName: {
+    fontFamily: "Newsreader_400Regular_Italic",
+    fontSize: 26,
+    color: "#1b1b1b",
+  },
+  profileCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#d9d9d9",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 0.5,
+    borderColor: "#a7a7a7",
+  },
+
+  // ── Scroll ──
+  scrollContent: { paddingBottom: 48 },
+
+  // ── Hero ──
+  heroSection: {
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 8,
+  },
+  timerPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#ffdad6",
+    marginBottom: 16,
+  },
+  timerText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+    letterSpacing: 1.5,
+    color: "#93000a",
+  },
+  title: {
+    fontFamily: "Newsreader_600SemiBold",
+    fontSize: 40,
+    lineHeight: 44,
+    color: "#1b1b1b",
+    textAlign: "center",
+    letterSpacing: -0.8,
+    marginBottom: 12,
+  },
+  subtitle: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    lineHeight: 24,
+    color: "#4c4546",
+    textAlign: "center",
+    maxWidth: 320,
+  },
+
+  // ── Cards ──
+  cardsList: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    gap: 16,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e4e2dd",
+    overflow: "hidden",
+    position: "relative",
+  },
+  cardBanned: {
+    opacity: 0.8,
+    borderColor: "rgba(186,26,26,0.25)",
+    backgroundColor: "#f3f3f3",
+  },
+
+  // BANNED overlay
+  bannedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(249,249,249,0.35)",
+  },
+  bannedStamp: {
+    transform: [{ rotate: "-15deg" }],
+    borderWidth: 3,
+    borderColor: "#1b1b1b",
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  bannedText: {
+    fontFamily: "Newsreader_600SemiBold",
+    fontSize: 36,
+    letterSpacing: 5,
+    color: "#1b1b1b",
+  },
+
+  // Image
+  imageBox: { height: 192, position: "relative" },
+  cardImage: { width: "100%", height: "100%", resizeMode: "cover" },
+  imageGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 80,
+    backgroundColor: "rgba(0,0,0,0.38)",
+  },
+
+  // Badges
+  badgesRow: {
+    position: "absolute",
+    bottom: 12,
+    left: 12,
+    right: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  ratingPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: "rgba(249,249,249,0.92)",
+  },
+  ratingText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+    color: "#1b1b1b",
+  },
+  voteDot: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#e8e8e8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  voteDotActive: { backgroundColor: "#1b1b1b" },
+  voteCount: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#4c4546" },
+  voteCountActive: { color: "#fff" },
+
+  // Card body
+  cardBody: { padding: 20 },
+  cardBodyBanned: { backgroundColor: "#f3f3f3" },
+  cardTitle: {
+    fontFamily: "Newsreader_500Medium",
+    fontSize: 26,
+    lineHeight: 32,
+    color: "#1b1b1b",
+    marginBottom: 4,
+  },
+  cardTitleBanned: {
+    textDecorationLine: "line-through",
+    color: "#888",
+  },
+  cardMeta: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: "#4c4546",
+    marginBottom: 16,
+  },
+  divider: { height: 1, backgroundColor: "#e4e2dd", marginBottom: 16 },
+
+  // Veto button
+  vetoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#1b1b1b",
+  },
+  vetoButtonPressed: { backgroundColor: "#f3f3f3" },
+  vetoButtonText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: "#1b1b1b",
+  },
+
+  // Eliminated button
+  eliminatedButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: "#e8e8e8",
+    opacity: 0.6,
+  },
+  eliminatedText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: "#4c4546",
+  },
+});
+
+export default PickBanScreen;

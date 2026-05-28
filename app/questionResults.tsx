@@ -166,7 +166,12 @@ const ResultScreen = () => {
       </View>
 
       <View style={styles.buttonWrapper}>
-        <MyButton onClick={() => router.push("/matched")} style={styles.readyButton}>
+        <MyButton
+          onClick={() =>
+            router.push({ pathname: "/pickBan", params: { restaurants: restaurantsParam } })
+          }
+          style={styles.readyButton}
+        >
           <Text style={styles.readyButtonText}>I'm Ready</Text>
           <Feather name="user-check" size={16} color="white" />
         </MyButton>
