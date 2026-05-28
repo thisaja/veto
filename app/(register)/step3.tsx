@@ -11,6 +11,7 @@ import {
 } from "@expo-google-fonts/newsreader";
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
 import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,7 +26,7 @@ const Step3Screen = () => {
     Newsreader_600SemiBold_Italic,
   });
   const { userDetails, setUserDetails } = useUserDetailsContext();
-
+  const { setAuth } = useAuth();
   const router = useRouter();
 
   const handleContinue = async () => {
@@ -49,6 +50,8 @@ const Step3Screen = () => {
         e.message = await response.json();
         throw e;
       }
+      const json = await response.json();
+      setAuth({ userId: json.userId, token: json.access_token, isGuest: false, guestId: null });
       router.dismissAll();
       router.replace("/(tabs)");
     } catch (error) {

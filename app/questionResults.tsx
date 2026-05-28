@@ -8,21 +8,58 @@ import {
   Newsreader_600SemiBold,
 } from "@expo-google-fonts/newsreader";
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { Dimensions, Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useMemo, useRef, useState } from "react";
+import {
+  Dimensions,
+  Image,
+  Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
-interface MyUserProps {
+const CARD_WIDTH = 340;
+const CARD_MARGIN = 12;
+const CARD_SLOT = CARD_WIDTH + CARD_MARGIN * 2;
+const SCROLL_PADDING = (width - CARD_WIDTH) / 2 - CARD_MARGIN;
+const GALLERY_HEIGHT = 260;
+
+type Restaurant = {
   id: number;
-  name?: string;
-  isReady?: string;
-  imageURL?: string;
-}
+  header: string;
+  imageURL: string;
+  imageURLs?: string[];
+  label: string;
+  priceRange?: string;
+  rating?: string;
+  caption: string;
+  popularItems?: string[];
+};
 
 const ResultScreen = () => {
-  let [fontsLoaded] = useFonts({
+  const router = useRouter();
+  const { restaurants: restaurantsParam } = useLocalSearchParams<{ restaurants: string }>();
+  const [selectedCard, setSelectedCard] = useState<Restaurant | null>(null);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const galleryRef = useRef<ScrollView>(null);
+
+  const restaurants: Restaurant[] = useMemo(() => {
+    try {
+      return restaurantsParam ? JSON.parse(restaurantsParam) : [];
+    } catch {
+      return [];
+    }
+  }, [restaurantsParam]);
+
+  const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_600SemiBold,
     Newsreader_400Regular,
@@ -30,57 +67,44 @@ const ResultScreen = () => {
     Newsreader_600SemiBold,
     Newsreader_400Regular_Italic,
   });
-  ``;
-  const router = useRouter();
-  const FRIENDS = [
-    { id: 1, name: "Samuel", isReady: false, imageURL: "../assets/images/sam.png" },
-    { id: 2, name: "Thisaja", isReady: false, imageURL: "../assets/images/tt.png" },
-    { id: 3, name: "Hady", isReady: true, imageURL: "../assets/images/defaultUser.png" },
-    { id: 4, name: "Thomas", isReady: true, imageURL: "../assets/images/defaultUser.png" },
-  ];
-  const CARDS = [
-    {
-      id: 1,
-      header: "Osteria Bianca",
-      imageURL:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuBHnkYKOAbep7frBylAtCBiv3d_UfuMpT8I3PdX_C65LLgCJ_QUqyG9JsMLTmIcispI4rbXnIS4hDzamuFtTdXEloFfGxI1mIbsoXfOVJKNBTVd7qEn7jit9yq_X8EOp2wlAAyIy7YZ46eKuXpnAHQUM8zmh09F1xjcUrl-8KDhnibdU-YDA7ddmiCXKjWubxQ5fZ0x_4hkNqqTFcxAUc6NfF53Q3qxk-yUJmQrCmalct501KheeHwNZqo0Krc-ryISjiMeBuulyrwZ",
-      label: "Italian",
-      description:
-        "Handmade pasta and rare regional wines in an intimate, candlelit setting that feels miles away from the city noise.",
-    },
-    {
-      id: 2,
-      header: "Kinjo",
-      imageURL:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuCYyTDcikdaLElkYOAQ510ZSxU5_vZg_N6VTPSvOYhY9LDgEKiJifRgGBAzBLtdWZH5rNTO1BtThQJAhiCL_0Mf99ZSQK73rkv0mWQnbFq9sqOgccdwoao9hxLqqVr-k-B4TfrlMxry-2IMY9F4byBP4pjGv9IOLbf83lrHg5IKnfrFKGGH3Z7GtmTLdjX_2IfNWmrF3fU2quvDlpgpe2wWvR6CoW0Jzy-D2XMqL3qrqfR9SKuZJLWl2r_yx66sJP00arbl-1f0Hgqs",
-      label: "OMAKASE",
-      description:
-        "A transcendent 15-course omakase experience crafted by a master chef, focusing on seasonal ingredients.",
-    },
-  ];
 
-  if (!fontsLoaded) {
-    return null;
-  }
+  if (!fontsLoaded) return null;
+
+  const openCard = (card: Restaurant) => {
+    setActiveImageIdx(0);
+    setSelectedCard(card);
+    galleryRef.current?.scrollTo({ x: 0, animated: false });
+  };
+
+  const onGalleryScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setActiveImageIdx(Math.round(e.nativeEvent.contentOffset.x / width));
+  };
+
+  const modalImages: string[] = selectedCard
+    ? (selectedCard.imageURLs?.length ? selectedCard.imageURLs : [selectedCard.imageURL]).filter(
+        Boolean,
+      )
+    : [];
 
   return (
-    <SafeAreaView className="h-full bg-white" style={{ justifyContent: "center" }}>
+    <SafeAreaView style={styles.screen}>
+      {/* ── Header ── */}
       <View style={styles.header}>
         <MyButton style={styles.sideButton} onClick={() => router.back()}>
           <Feather name="arrow-left" size={24} color="black" />
         </MyButton>
-
         <View style={styles.titleContainer}>
           <Text style={styles.topText}>FRIDAY NIGHT DINNER</Text>
-          <Text style={styles.bottomText}>5 Matches Found</Text>
+          <Text style={styles.bottomText}>{restaurants.length} Matches Found</Text>
         </View>
-
         <MyButton style={styles.sideButton} onClick={() => {}}>
           <View style={styles.profileCircle}>
             <Feather name="user" size={20} color="#5b5b5b" />
           </View>
         </MyButton>
       </View>
+
+      {/* ── Title ── */}
       <View style={styles.middleContainer}>
         <Text style={styles.shortList}>The Shortlist</Text>
         <Text style={styles.shortDesc}>
@@ -88,27 +112,45 @@ const ResultScreen = () => {
         </Text>
       </View>
 
-      <View style={styles.scrollContent}>
+      {/* ── Card scroll ── */}
+      <View style={styles.scrollWrapper}>
         <ScrollView
-          horizontal={true}
+          horizontal
           decelerationRate="fast"
           snapToAlignment="start"
-          snapToInterval={width * 0.8 + 20}
+          snapToInterval={CARD_SLOT}
           showsHorizontalScrollIndicator={false}
-          style={styles.scrollSettings}
+          contentContainerStyle={[
+            styles.scrollContainer,
+            { paddingHorizontal: Math.max(SCROLL_PADDING, 8) },
+          ]}
         >
-          {CARDS.map((card) => (
-            <View key={card.id} style={{ flexDirection: "row" }}>
-              <Card
-                header={card.header}
-                imageURL={card.imageURL}
-                label={card.label}
-                description={card.description}
-              />
+          {restaurants.length === 0 ? (
+            <View style={[styles.emptyState, { width: CARD_WIDTH }]}>
+              <Text style={styles.emptyText}>No matches found. Try adjusting your filters.</Text>
             </View>
-          ))}
+          ) : (
+            restaurants.map((card) => (
+              <Pressable
+                key={card.id}
+                style={{ marginHorizontal: CARD_MARGIN }}
+                onPress={() => openCard(card)}
+              >
+                <Card
+                  header={card.header}
+                  imageURL={card.imageURLs?.[0] ?? card.imageURL}
+                  label={card.label}
+                  priceRange={card.priceRange}
+                  rating={card.rating}
+                  description={card.caption}
+                />
+              </Pressable>
+            ))
+          )}
         </ScrollView>
       </View>
+
+      {/* ── Footer ── */}
       <View style={styles.bottomContainer}>
         <Text style={styles.topText}>Waiting for others...</Text>
         <View style={styles.imageStack}>
@@ -121,38 +163,142 @@ const ResultScreen = () => {
             source={require("../assets/images/tt.png")}
           />
         </View>
-        {/**
-         *         <View>
-          <Image source={require("../assets/images/sam.png")} />
-        </View>
-         */}
-        {/**
-           *{FRIENDS.map((friend) => (
-            <View key={friend.id}>
-              <Image source={require(friend.imageURL)} />
-              {friend.isReady && (
-                <View>
-                  <Image source={require("../assets/images/checkbox.png")} />
-                </View>
-              )}
-            </View>
-          ))}
-           */}
       </View>
-      <View style={{ marginLeft: 15 }}>
+
+      <View style={styles.buttonWrapper}>
         <MyButton
-          onClick={() => router.push("/matched")}
-          style={{ width: 370, height: 56, justifyContent: "center" }}
+          onClick={() =>
+            router.push({ pathname: "/pickBan", params: { restaurants: restaurantsParam } })
+          }
+          style={styles.readyButton}
         >
-          <Text style={{ color: "white", fontSize: 16, fontWeight: "bold" }}>I'm Ready</Text>
+          <Text style={styles.readyButtonText}>I'm Ready</Text>
           <Feather name="user-check" size={16} color="white" />
         </MyButton>
       </View>
+
+      {/* ── Detail modal ── */}
+      <Modal
+        visible={!!selectedCard}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedCard(null)}
+      >
+        <View style={styles.modalRoot}>
+          {/* Dim backdrop */}
+          <Pressable style={styles.backdrop} onPress={() => setSelectedCard(null)} />
+
+          {/* Bottom sheet */}
+          <View style={styles.sheet}>
+            <View style={styles.handle} />
+
+            {/* Image gallery */}
+            <View style={styles.galleryContainer}>
+              <ScrollView
+                ref={galleryRef}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={onGalleryScroll}
+                scrollEventThrottle={16}
+                style={{ height: GALLERY_HEIGHT }}
+              >
+                {modalImages.length > 0 ? (
+                  modalImages.map((uri, idx) => (
+                    <Image
+                      key={idx}
+                      source={{ uri }}
+                      style={{ width, height: GALLERY_HEIGHT, resizeMode: "cover" }}
+                    />
+                  ))
+                ) : (
+                  <View style={[{ width, height: GALLERY_HEIGHT }, styles.galleryPlaceholder]}>
+                    <Feather name="image" size={48} color="#ccc" />
+                  </View>
+                )}
+              </ScrollView>
+
+              {modalImages.length > 1 && (
+                <View style={styles.dotsRow}>
+                  {modalImages.map((_, idx) => (
+                    <View
+                      key={idx}
+                      style={[styles.dot, idx === activeImageIdx && styles.dotActive]}
+                    />
+                  ))}
+                </View>
+              )}
+
+              <Pressable style={styles.closeBtn} onPress={() => setSelectedCard(null)}>
+                <View style={styles.closeBtnInner}>
+                  <Feather name="x" size={18} color="white" />
+                </View>
+              </Pressable>
+            </View>
+
+            {/* Scrollable content */}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.detailContent}
+            >
+              {/* Chips */}
+              <View style={styles.chipRow}>
+                {selectedCard?.label && (
+                  <View style={styles.chip}>
+                    <Text style={styles.chipText}>{selectedCard.label}</Text>
+                  </View>
+                )}
+                {selectedCard?.priceRange && (
+                  <View style={[styles.chip, styles.chipOutline]}>
+                    <Text style={[styles.chipText, styles.chipTextDark]}>
+                      {selectedCard.priceRange}
+                    </Text>
+                  </View>
+                )}
+                {selectedCard?.rating && (
+                  <View style={[styles.chip, styles.chipOutline]}>
+                    <Text style={[styles.chipText, styles.chipTextDark]}>
+                      ★ {selectedCard.rating}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <Text style={styles.modalName}>{selectedCard?.header}</Text>
+              <View style={styles.divider} />
+
+              <Text style={styles.sectionLabel}>ABOUT</Text>
+              <Text style={styles.modalDesc}>{selectedCard?.caption}</Text>
+
+              {(selectedCard?.popularItems?.length ?? 0) > 0 && (
+                <>
+                  <View style={styles.divider} />
+                  <Text style={styles.sectionLabel}>POPULAR ITEMS</Text>
+                  {selectedCard!.popularItems!.map((item, idx) => (
+                    <View key={idx} style={styles.popularRow}>
+                      <View style={styles.popularDot} />
+                      <Text style={styles.popularItem}>{item}</Text>
+                    </View>
+                  ))}
+                </>
+              )}
+
+              <View style={{ height: 40 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+
+  // ── Header ──
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -170,23 +316,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  titleContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  titleContainer: { alignItems: "center", justifyContent: "center" },
   topText: {
     fontFamily: "Inter_400Regular",
-    fontSize: 15,
+    fontSize: 14,
     letterSpacing: 1.5,
     color: "#444",
     textAlign: "center",
   },
   bottomText: {
     fontFamily: "Newsreader_400Regular_Italic",
-    fontSize: 23,
+    fontSize: 22,
     color: "#000",
     textAlign: "center",
-    marginTop: 3,
+    marginTop: 2,
   },
   profileCircle: {
     width: 40,
@@ -198,47 +341,171 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: "#a7a7a7",
   },
-  scrollContent: {
-    alignItems: "center",
-  },
+
+  // ── Title block ──
   middleContainer: {
     alignItems: "center",
     paddingHorizontal: 40,
-    paddingTop: 30,
+    paddingTop: 16,
+    paddingBottom: 4,
   },
   shortList: {
     fontFamily: "Newsreader_600SemiBold",
-    fontSize: 45,
+    fontSize: 40,
     color: "#000",
     textAlign: "center",
   },
   shortDesc: {
     fontFamily: "Inter_400Regular",
-    fontSize: 15,
+    fontSize: 13,
     color: "#444",
-    marginTop: 10,
-    lineHeight: 22,
+    marginTop: 6,
+    lineHeight: 19,
     textAlign: "center",
   },
-  scrollSettings: {
-    paddingLeft: 3,
-  },
+
+  // ── Scroll ──
+  scrollWrapper: { flex: 1, justifyContent: "center", marginTop: 50 },
+  scrollContainer: { alignItems: "center" },
+  emptyState: { justifyContent: "center", alignItems: "center", paddingVertical: 60 },
+  emptyText: { fontFamily: "Inter_400Regular", fontSize: 15, color: "#888", textAlign: "center" },
+
+  // ── Footer ──
   bottomContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 25,
+    paddingHorizontal: 24,
     alignItems: "center",
-    marginTop: 50,
+    paddingTop: 10,
+    paddingBottom: 8,
   },
-  userImage: {
+  userImage: { width: 38, height: 38, borderRadius: 19, borderColor: "white", borderWidth: 4 },
+  imageStack: { flexDirection: "row" },
+  buttonWrapper: { paddingHorizontal: 16, paddingBottom: 8 },
+  readyButton: { width: "100%", height: 56, justifyContent: "center" },
+  readyButtonText: { color: "white", fontSize: 16, fontWeight: "bold" },
+
+  // ── Modal ──
+  modalRoot: { flex: 1 },
+  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)" },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: height * 0.93,
+    overflow: "hidden",
+  },
+  handle: {
     width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderColor: "white",
-    borderWidth: 5,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D0D0D0",
+    alignSelf: "center",
+    marginTop: 10,
+    marginBottom: 6,
   },
-  imageStack: {
+
+  // Gallery
+  galleryContainer: { position: "relative" },
+  galleryPlaceholder: {
+    backgroundColor: "#F0EEEA",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  dotsRow: {
+    position: "absolute",
+    bottom: 12,
+    left: 0,
+    right: 0,
     flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.5)",
+  },
+  dotActive: {
+    backgroundColor: "#fff",
+    width: 18,
+    borderRadius: 3,
+  },
+  closeBtn: { position: "absolute", top: 14, right: 14 },
+  closeBtnInner: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // Detail content
+  detailContent: { paddingHorizontal: 24, paddingTop: 18, paddingBottom: 8 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    backgroundColor: "#000",
+    borderRadius: 20,
+  },
+  chipOutline: {
+    backgroundColor: "#efefef",
+  },
+  chipText: {
+    color: "#fff",
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  chipTextDark: {
+    color: "#888",
+  },
+  modalName: {
+    fontFamily: "Newsreader_600SemiBold",
+    fontSize: 34,
+    color: "#1B1B1B",
+    lineHeight: 40,
+    marginBottom: 16,
+  },
+  divider: { height: 1, backgroundColor: "#EBEBEB", marginVertical: 16 },
+  sectionLabel: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+    letterSpacing: 2,
+    color: "#888",
+    marginBottom: 10,
+  },
+  modalDesc: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    lineHeight: 24,
+    color: "#3A3A3A",
+  },
+
+  // Popular items
+  popularRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  popularDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: "#1B1B1B",
+    marginTop: 8,
+    marginRight: 12,
+  },
+  popularItem: {
+    fontFamily: "Newsreader_400Regular",
+    fontSize: 18,
+    color: "#1B1B1B",
+    lineHeight: 24,
+    flex: 1,
   },
 });
 

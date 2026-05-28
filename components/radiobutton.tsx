@@ -1,5 +1,4 @@
-import { Text, TextStyle, View } from "react-native";
-import MyButton from "./button";
+import { StyleSheet, Text, TextStyle, TouchableOpacity, View } from "react-native";
 
 interface RadiobuttonProps {
   options: string[];
@@ -12,33 +11,47 @@ const Radiobutton = ({
   options,
   onClick,
   value,
-  fontFamily = "YourFontName",
+  fontFamily = "Inter_400Regular",
 }: RadiobuttonProps) => {
   return (
-    <View style={{ gap: 16 }}>
+    <View style={styles.container}>
       {options.map((option, index) => {
         const isSelected = option === value;
-
         const textStyle: TextStyle = {
-          fontFamily: fontFamily,
+          fontFamily,
           color: isSelected ? "white" : "#1b1c19",
           fontSize: 17,
+          textAlign: "center",
         };
 
         return (
-          <MyButton
+          <TouchableOpacity
             key={index}
-            onClick={() => {
-              onClick(options[index]);
-            }}
-            style={{ backgroundColor: isSelected ? "black" : "#e4e2dd" }}
+            onPress={() => onClick(option)}
+            style={[styles.button, { backgroundColor: isSelected ? "black" : "#e4e2dd" }]}
           >
             <Text style={textStyle}>{option}</Text>
-          </MyButton>
+          </TouchableOpacity>
         );
       })}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    gap: 10,
+    alignItems: "center",
+  },
+  button: {
+    width: 260,
+    minHeight: 52,
+    borderRadius: 26,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+  },
+});
 
 export default Radiobutton;

@@ -5,8 +5,16 @@ import { Newsreader_400Regular, Newsreader_600SemiBold } from "@expo-google-font
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useSession } from "@/context/SessionContext";
+import { useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const InviteScreen = () => {
@@ -17,7 +25,57 @@ const InviteScreen = () => {
     Newsreader_600SemiBold,
   });
   const router = useRouter();
-  const [invitedFriends, setInvitedFriends] = useState<string[]>(["sam", "hady", "thomas"]);
+  const { sessionId } = useSession();
+
+  const [isLoading, setIsLoading] = useState(false);
+  const fetchedDataRef = useRef<any>(null);
+  const userWantsToProceedRef = useRef(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const url = sessionId
+          ? `http://10.0.0.129:5000/api/gemini/question?sessionId=${sessionId}`
+          : "http://10.0.0.129:5000/api/gemini/question";
+        const response = await fetch(url, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+        const jsonResponse = await response.json();
+
+        const generatedContent = jsonResponse?.data;
+
+        console.log("--- Data Received ---");
+        console.log(generatedContent);
+
+        if (generatedContent && Array.isArray(generatedContent)) {
+          fetchedDataRef.current = generatedContent;
+
+          if (userWantsToProceedRef.current) {
+            setIsLoading(false);
+            router.push("/questionnaire");
+          }
+        }
+      } catch (err) {
+        console.error("Fetch error:", err);
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const handleStartQuestionnaire = () => {
+    if (fetchedDataRef.current) {
+      router.push("/questionnaire");
+    } else {
+      userWantsToProceedRef.current = true;
+      setIsLoading(true);
+    }
+  };
+
+  const invitedFriends = ["sam", "hady", "thomas"];
+
   return (
     <SafeAreaView style={globalStyles.screen}>
       <View
@@ -122,7 +180,7 @@ const InviteScreen = () => {
             </View>
             <Text>You</Text>
           </View>
-          {invitedFriends.map((name, _) => {
+          {invitedFriends.map((name) => {
             return (
               <View key={name} style={{ alignItems: "center", gap: 4 }}>
                 <View
@@ -161,11 +219,35 @@ const InviteScreen = () => {
           </TouchableOpacity>
         </ScrollView>
       </View>
-      <MyButton onClick={() => router.push("/questionnaire")} style={{ width: "100%", height: 56 }}>
+      <MyButton onClick={handleStartQuestionnaire} style={{ width: "100%", height: 56 }}>
         <Text style={{ color: "white", fontSize: 16 }}>Start Questionnaire</Text>
         <Feather name="arrow-right" size={16} color="white" />
       </MyButton>
+
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#4C4546" />
+          <Text style={styles.loadingText}>Loading Questionnaire...</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#4C4546",
+    fontFamily: "Inter_600SemiBold",
+  },
+});
+
 export default InviteScreen;
