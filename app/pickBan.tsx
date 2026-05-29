@@ -9,7 +9,7 @@ import {
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { io, Socket } from "socket.io-client";
 
@@ -325,35 +325,37 @@ const PickBanScreen = () => {
                     </View>
                   ) : isMyVote ? (
                     /* User's current vote — tapping removes it */
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.eliminatedButton,
-                        pressed && { opacity: 0.7 },
-                      ]}
+                    <TouchableOpacity
+                      style={styles.eliminatedButton}
                       onPress={() => handleVeto(r.id)}
+                      activeOpacity={0.7}
                     >
                       <Text style={styles.eliminatedText}>
                         Your Veto — {voteCount} Vote{voteCount !== 1 ? "s" : ""}
                       </Text>
-                    </Pressable>
+                    </TouchableOpacity>
                   ) : gamePhase !== "active" ? (
                     /* Round is over — lock all buttons */
                     <View style={[styles.vetoButton, styles.vetoButtonDisabled]}>
-                      <Ionicons name="ban-outline" size={18} color="#bbb" />
-                      <Text style={[styles.vetoButtonText, { color: "#bbb" }]}>Veto This Option</Text>
+                      <View style={styles.vetoButtonContent}>
+                        <Ionicons name="ban-outline" size={18} color="#c0c0c0" />
+                        <Text style={[styles.vetoButtonText, styles.vetoButtonTextDisabled]}>
+                          Veto This Option
+                        </Text>
+                      </View>
                     </View>
                   ) : (
-                    /* Active — always tappable, even if already voted elsewhere */
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.vetoButton,
-                        pressed && styles.vetoButtonPressed,
-                      ]}
+                    /* Active — tappable, switch vote freely */
+                    <TouchableOpacity
+                      style={styles.vetoButton}
                       onPress={() => handleVeto(r.id)}
+                      activeOpacity={0.7}
                     >
-                      <Ionicons name="ban-outline" size={18} color="#1b1b1b" />
-                      <Text style={styles.vetoButtonText}>Veto This Option</Text>
-                    </Pressable>
+                      <View style={styles.vetoButtonContent}>
+                        <Ionicons name="ban-outline" size={18} color="#1b1b1b" />
+                        <Text style={styles.vetoButtonText}>Veto This Option</Text>
+                      </View>
+                    </TouchableOpacity>
                   )}
                 </View>
               </View>
@@ -605,29 +607,34 @@ const styles = StyleSheet.create({
   },
   divider: { height: 1, backgroundColor: "#e4e2dd", marginBottom: 16 },
 
-  // Veto button
+  // Veto button — border/shape lives here, NOT on a Pressable style callback
   vetoButton: {
     width: "100%",
+    borderRadius: 32,
+    borderWidth: 1.5,
+    borderColor: "#1b1b1b",
+    backgroundColor: "#ffffff",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  // Inner row: icon + label side-by-side (explicit View so flexDirection is reliable)
+  vetoButtonContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: "#1b1b1b",
-    backgroundColor: "#ffffff",
   },
-  vetoButtonPressed: { backgroundColor: "#f3f3f3" },
   vetoButtonDisabled: {
-    borderColor: "#d5d5d5",
+    borderColor: "#d0d0d0",
     backgroundColor: "#fafafa",
   },
   vetoButtonText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
     color: "#1b1b1b",
+  },
+  vetoButtonTextDisabled: {
+    color: "#c0c0c0",
   },
 
   // Eliminated label
