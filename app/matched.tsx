@@ -31,6 +31,7 @@ type Restaurant = {
   caption?: string;
   popularItems?: string[];
   address?: string;
+  phone?: string;
 };
 
 const MatchScreen = () => {
@@ -70,7 +71,7 @@ const MatchScreen = () => {
     if (!restaurant) return;
     const query = encodeURIComponent(restaurant.address ?? restaurant.header);
 
-    // Prefer native maps app — iOS → Apple Maps, Android → default geo handler
+    // iOS → Apple Maps, Android → default geo handler, fallback → Google Maps web
     const nativeUrl = Platform.select({
       ios: `maps://0,0?q=${query}`,
       android: `geo:0,0?q=${query}`,
@@ -78,10 +79,33 @@ const MatchScreen = () => {
     const webFallback = `https://maps.google.com/maps?q=${query}`;
 
     try {
-      const canOpenNative = await Linking.canOpenURL(nativeUrl);
-      await Linking.openURL(canOpenNative ? nativeUrl : webFallback);
+      const canOpen = await Linking.canOpenURL(nativeUrl);
+      await Linking.openURL(canOpen ? nativeUrl : webFallback);
     } catch {
       await Linking.openURL(webFallback);
+    }
+  };
+
+  const handleCall = async () => {
+    if (!restaurant?.phone) return;
+    const url = `tel:${restaurant.phone}`;
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) await Linking.openURL(url);
+    } catch {}
+  };
+
+  const handleReserve = async () => {
+    if (!restaurant) return;
+    const name = encodeURIComponent(restaurant.header);
+    // Try Yelp app first, fall back to Yelp website
+    const yelpApp = `yelp:///search?terms=${name}`;
+    const yelpWeb = `https://www.yelp.com/search?find_desc=${name}`;
+    try {
+      const canOpen = await Linking.canOpenURL(yelpApp);
+      await Linking.openURL(canOpen ? yelpApp : yelpWeb);
+    } catch {
+      await Linking.openURL(yelpWeb);
     }
   };
 
@@ -141,13 +165,13 @@ const MatchScreen = () => {
             {restaurant?.label ?? ""}
           </Text>
 
-          {/* Location row — always shown, tap copies address to clipboard */}
+          {/* Location row — tap copies address to clipboard */}
           <TouchableOpacity
             style={styles.locationRow}
             onPress={handleCopyAddress}
             activeOpacity={0.75}
           >
-            <Feather name="map-pin" size={16} color="#6b6b6b" />
+            <Feather name="map-pin" size={14} color="#888" />
             <Text style={styles.locationText} numberOfLines={2}>
               {addressCopied
                 ? "Copied to clipboard!"
@@ -178,10 +202,10 @@ const MatchScreen = () => {
         </MyButton>
 
         <View style={styles.secondaryRow}>
-          <TouchableOpacity style={styles.reserveButton}>
+          <TouchableOpacity style={styles.reserveButton} onPress={handleReserve} activeOpacity={0.8}>
             <Text style={styles.reserveButtonText}>RESERVE A TABLE</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.callButton}>
+          <TouchableOpacity style={styles.callButton} onPress={handleCall} activeOpacity={0.8}>
             <Feather name="phone" size={16} color="#1b1b1b" />
           </TouchableOpacity>
         </View>
@@ -311,7 +335,7 @@ const styles = StyleSheet.create({
   locationText: {
     fontFamily: "Inter_400Regular",
     fontSize: 14,
-    color: "#4a4a4a",
+    color: "#666",
     flex: 1,
     lineHeight: 20,
   },
