@@ -1,4 +1,3 @@
-import MyButton from "@/components/button";
 import { useAuth } from "@/context/AuthContext";
 import { Inter_400Regular, Inter_600SemiBold, useFonts } from "@expo-google-fonts/inter";
 import {
@@ -116,9 +115,9 @@ export default function HomeScreen() {
             </View>
             <MaterialIcons name="restaurant" size={56} color="#d4cfc8" style={styles.decorIcon} />
           </View>
-          <MyButton onClick={handleHostSession} style={styles.cardPrimaryBtn}>
-            <Text style={styles.cardPrimaryBtnText}>CREATE SESSION</Text>
-          </MyButton>
+          <TouchableOpacity style={styles.cardBtn} activeOpacity={0.8} onPress={handleHostSession}>
+            <Text style={styles.cardBtnText}>CREATE SESSION</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ════════════════════════════
@@ -134,9 +133,9 @@ export default function HomeScreen() {
             </View>
             <Feather name="users" size={52} color="#d4cfc8" style={styles.decorIcon} />
           </View>
-          <MyButton onClick={() => router.push("/joinLobby")} style={styles.cardPrimaryBtn}>
-            <Text style={styles.cardPrimaryBtnText}>SCAN QR OR ENTER CODE</Text>
-          </MyButton>
+          <TouchableOpacity style={styles.cardBtn} activeOpacity={0.8} onPress={() => router.push("/joinLobby")}>
+            <Text style={styles.cardBtnText}>SCAN QR OR ENTER CODE</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ════════════════════════════
@@ -242,17 +241,7 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
 
-  // Primary (black filled)
-  cardPrimaryBtn: { width: "100%", height: 52 },
-  cardPrimaryBtnText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 13,
-    letterSpacing: 1.2,
-    color: "#fff",
-  },
-
-  // Secondary (light pill)
-  cardSecondaryBtn: {
+  cardBtn: {
     width: "100%",
     height: 52,
     borderRadius: 32,
@@ -260,7 +249,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cardSecondaryBtnText: {
+  cardBtnText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
     letterSpacing: 1.5,
