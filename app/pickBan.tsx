@@ -264,16 +264,15 @@ const PickBanScreen = () => {
             const heroImage = r.imageURLs?.[0] ?? r.imageURL;
             const voteCount = voteCounts[r.id] ?? 0;
             const isMyVote = myVoteId === r.id;
-            // Show BANNED overlay if already eliminated by server, or if user cast their veto here
-            const showBanned = isEliminated || isMyVote;
 
             return (
               <View
                 key={r.id}
-                style={[styles.card, showBanned && styles.cardBanned]}
+                // Only truly eliminated cards get the full dim treatment
+                style={[styles.card, isEliminated && styles.cardBanned]}
               >
-                {/* BANNED stamp overlay */}
-                {showBanned && (
+                {/* Full-card BANNED overlay: server-confirmed eliminations only */}
+                {isEliminated && (
                   <View style={styles.bannedOverlay} pointerEvents="none">
                     <View style={[styles.bannedStamp, isJustEliminated && styles.bannedStampFresh]}>
                       <Text style={[styles.bannedText, isJustEliminated && styles.bannedTextFresh]}>
@@ -287,6 +286,17 @@ const PickBanScreen = () => {
                 <View style={styles.imageBox}>
                   <Image source={{ uri: heroImage }} style={styles.cardImage} />
                   <View style={styles.imageGradient} />
+
+                  {/* Image-only BANNED overlay for user's current tentative vote */}
+                  {isMyVote && !isEliminated && (
+                    <View style={styles.imageBannedOverlay} pointerEvents="none">
+                      <View style={styles.bannedStamp}>
+                        <Text style={styles.bannedText}>BANNED</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Badges on top of everything */}
                   <View style={styles.badgesRow}>
                     {r.rating ? (
                       <View style={styles.ratingPill}>
@@ -296,7 +306,7 @@ const PickBanScreen = () => {
                     ) : (
                       <View />
                     )}
-                    {/* Live vote count badge */}
+                    {/* Live vote count — always visible */}
                     <View style={[styles.voteDot, voteCount > 0 && styles.voteDotActive]}>
                       <Text style={[styles.voteCount, voteCount > 0 && styles.voteCountActive]}>
                         {voteCount}
@@ -305,9 +315,9 @@ const PickBanScreen = () => {
                   </View>
                 </View>
 
-                {/* Content */}
-                <View style={[styles.cardBody, showBanned && styles.cardBodyBanned]}>
-                  <Text style={[styles.cardTitle, showBanned && styles.cardTitleBanned]}>
+                {/* Content — full opacity for active cards, dimmed only when eliminated */}
+                <View style={[styles.cardBody, isEliminated && styles.cardBodyBanned]}>
+                  <Text style={[styles.cardTitle, isEliminated && styles.cardTitleBanned]}>
                     {r.header}
                   </Text>
                   <Text style={styles.cardMeta}>
@@ -317,25 +327,28 @@ const PickBanScreen = () => {
                   <View style={styles.divider} />
 
                   {isEliminated ? (
-                    /* Confirmed eliminated by server */
+                    /* Server-confirmed — locked label */
                     <View style={styles.eliminatedButton}>
                       <Text style={styles.eliminatedText}>
                         Eliminated — {voteCount} Vote{voteCount !== 1 ? "s" : ""}
                       </Text>
                     </View>
                   ) : isMyVote ? (
-                    /* User's current vote — tapping removes it */
+                    /* User's current vote — visible count, tap to unvote or switch */
                     <TouchableOpacity
-                      style={styles.eliminatedButton}
+                      style={styles.myVoteButton}
                       onPress={() => handleVeto(r.id)}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.eliminatedText}>
-                        Your Veto — {voteCount} Vote{voteCount !== 1 ? "s" : ""}
-                      </Text>
+                      <View style={styles.vetoButtonContent}>
+                        <Ionicons name="ban-outline" size={18} color="#ba1a1a" />
+                        <Text style={styles.myVoteButtonText}>
+                          Your Veto · {voteCount} Vote{voteCount !== 1 ? "s" : ""}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   ) : gamePhase !== "active" ? (
-                    /* Round is over — lock all buttons */
+                    /* Round over — locked */
                     <View style={[styles.vetoButton, styles.vetoButtonDisabled]}>
                       <View style={styles.vetoButtonContent}>
                         <Ionicons name="ban-outline" size={18} color="#c0c0c0" />
@@ -345,7 +358,7 @@ const PickBanScreen = () => {
                       </View>
                     </View>
                   ) : (
-                    /* Active — tappable, switch vote freely */
+                    /* Active — always tappable, switch vote freely */
                     <TouchableOpacity
                       style={styles.vetoButton}
                       onPress={() => handleVeto(r.id)}
@@ -504,13 +517,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#f3f3f3",
   },
 
-  // BANNED overlay
+  // BANNED overlay — full-card version (server-confirmed eliminations)
   bannedOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(249,249,249,0.30)",
+  },
+  // Image-only BANNED overlay (user's current tentative vote)
+  imageBannedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.22)",
   },
   bannedStamp: {
     transform: [{ rotate: "-15deg" }],
@@ -544,7 +565,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.38)",
   },
 
-  // Badges
+  // Badges — z-index above both overlay types so count is always readable
   badgesRow: {
     position: "absolute",
     bottom: 12,
@@ -553,6 +574,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    zIndex: 6,
   },
   ratingPill: {
     flexDirection: "row",
@@ -637,21 +659,36 @@ const styles = StyleSheet.create({
     color: "#c0c0c0",
   },
 
-  // Eliminated label
+  // Server-confirmed eliminated label (non-interactive)
   eliminatedButton: {
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 13,
     paddingHorizontal: 16,
-    borderRadius: 999,
-    backgroundColor: "#e8e8e8",
-    opacity: 0.6,
+    borderRadius: 32,
+    backgroundColor: "#ebebeb",
   },
   eliminatedText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
-    color: "#4c4546",
+    color: "#888",
+  },
+
+  // User's current tentative vote — shows live count, always tappable
+  myVoteButton: {
+    width: "100%",
+    borderRadius: 32,
+    borderWidth: 1.5,
+    borderColor: "#ba1a1a",
+    backgroundColor: "#fff8f8",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  myVoteButtonText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: "#ba1a1a",
   },
 });
 
