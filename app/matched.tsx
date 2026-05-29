@@ -147,9 +147,7 @@ const MatchScreen = () => {
             onPress={handleCopyAddress}
             activeOpacity={0.75}
           >
-            <View style={styles.locationPinCircle}>
-              <Feather name="map-pin" size={14} color="#8B5A83" />
-            </View>
+            <Feather name="map-pin" size={16} color="#6b6b6b" />
             <Text style={styles.locationText} numberOfLines={2}>
               {addressCopied
                 ? "Copied to clipboard!"
@@ -308,23 +306,14 @@ const styles = StyleSheet.create({
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-  },
-  locationPinCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#f5f0f8",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
+    gap: 8,
   },
   locationText: {
     fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    color: "#555",
+    fontSize: 14,
+    color: "#4a4a4a",
     flex: 1,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   chipsRow: {
     flexDirection: "row",
