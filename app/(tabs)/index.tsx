@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 52,
     borderRadius: 32,
-    backgroundColor: "#E4E1DB",
+    backgroundColor: "#1b1b1b",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
     letterSpacing: 1.5,
-    color: "#555",
+    color: "#fff",
   },
 
   // ── Recent groups ──
