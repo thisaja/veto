@@ -198,19 +198,6 @@ const PickBanScreen = () => {
   // Merge all restaurants: show active + eliminated together for visual continuity
   const displayRestaurants = allRestaurants.length > 0 ? allRestaurants : activeRestaurants;
 
-  // ── Phase: game_over celebration ─────────────────────────────────────────
-  if (gamePhase === "game_over" && winner) {
-    return (
-      <SafeAreaView style={styles.screen}>
-        <View style={styles.winnerScreen}>
-          <Text style={styles.winnerLabel}>AND THE WINNER IS</Text>
-          <Text style={styles.winnerName}>{winner.header}</Text>
-          <Text style={styles.winnerSub}>Navigating to your result…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.screen}>
       {/* ── Header ── */}
@@ -229,7 +216,12 @@ const PickBanScreen = () => {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* ── Hero section ── */}
         <View style={styles.heroSection}>
-          {gamePhase === "connecting" ? (
+          {gamePhase === "game_over" ? (
+            <View style={[styles.timerPill, styles.timerPillWinner]}>
+              <Feather name="award" size={14} color="#5a3800" />
+              <Text style={[styles.timerText, { color: "#5a3800" }]}>THE WINNER</Text>
+            </View>
+          ) : gamePhase === "connecting" ? (
             <View style={styles.timerPill}>
               <Feather name="wifi" size={14} color="#444" />
               <Text style={[styles.timerText, { color: "#444" }]}>CONNECTING…</Text>
@@ -241,16 +233,22 @@ const PickBanScreen = () => {
             </View>
           ) : (
             <View style={[styles.timerPill, timeLeft <= 10 && styles.timerPillUrgent]}>
-              <Feather name="clock" size={14} color={timeLeft <= 10 ? "#93000a" : "#93000a"} />
+              <Feather name="clock" size={14} color="#93000a" />
               <Text style={styles.timerText}>{formatTime(timeLeft)} REMAINING</Text>
             </View>
           )}
 
           <Text style={styles.title}>
-            {gamePhase === "round_end" ? "Elimination" : "Elimination Phase"}
+            {gamePhase === "game_over"
+              ? winner?.header ?? "The Verdict"
+              : gamePhase === "round_end"
+              ? "Elimination"
+              : "Elimination Phase"}
           </Text>
           <Text style={styles.subtitle}>
-            {gamePhase === "round_end"
+            {gamePhase === "game_over"
+              ? "Taking you to your result…"
+              : gamePhase === "round_end"
               ? `Round ${round} is over. Next round starting soon…`
               : `Round ${round} of 4 — Cast your veto. The restaurant with the most votes will be eliminated.`}
           </Text>
@@ -263,18 +261,36 @@ const PickBanScreen = () => {
             const heroImage = r.imageURLs?.[0] ?? r.imageURL;
             const voteCount = voteCounts[r.id] ?? 0;
             const isMyVote = myVoteId === r.id;
+            const isGameOver = gamePhase === "game_over";
+            const isWinner = isGameOver && winner?.id === r.id;
+            // Stamps are red during play, flip to black at game_over
+            const stampStyle = isGameOver ? styles.bannedStampFinal : styles.bannedStamp;
+            const stampTextStyle = isGameOver ? styles.bannedTextFinal : styles.bannedText;
 
             return (
               <View
                 key={r.id}
-                // Only truly eliminated cards get the full dim treatment
-                style={[styles.card, isEliminated && styles.cardBanned]}
+                style={[
+                  styles.card,
+                  isEliminated && styles.cardBanned,
+                  isWinner && styles.cardWinner,
+                ]}
               >
                 {/* Full-card BANNED overlay: server-confirmed eliminations only */}
                 {isEliminated && (
                   <View style={styles.bannedOverlay} pointerEvents="none">
-                    <View style={styles.bannedStamp}>
-                      <Text style={styles.bannedText}>BANNED</Text>
+                    <View style={stampStyle}>
+                      <Text style={stampTextStyle}>BANNED</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Winner crown overlay at game_over */}
+                {isWinner && (
+                  <View style={styles.winnerOverlay} pointerEvents="none">
+                    <View style={styles.winnerBadge}>
+                      <Feather name="award" size={18} color="#5a3800" />
+                      <Text style={styles.winnerBadgeText}>WINNER</Text>
                     </View>
                   </View>
                 )}
@@ -287,8 +303,8 @@ const PickBanScreen = () => {
                   {/* Image-only BANNED overlay for user's current tentative vote */}
                   {isMyVote && !isEliminated && (
                     <View style={styles.imageBannedOverlay} pointerEvents="none">
-                      <View style={styles.bannedStamp}>
-                        <Text style={styles.bannedText}>BANNED</Text>
+                      <View style={stampStyle}>
+                        <Text style={stampTextStyle}>BANNED</Text>
                       </View>
                     </View>
                   )}
@@ -380,37 +396,6 @@ const PickBanScreen = () => {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f9f9f9" },
 
-  // ── Winner screen ──
-  winnerScreen: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 32,
-    backgroundColor: "#f9f9f9",
-  },
-  winnerLabel: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 13,
-    letterSpacing: 2,
-    color: "#8B5A83",
-    marginBottom: 16,
-  },
-  winnerName: {
-    fontFamily: "Newsreader_600SemiBold",
-    fontSize: 48,
-    lineHeight: 54,
-    color: "#1b1b1b",
-    textAlign: "center",
-    letterSpacing: -1,
-    marginBottom: 16,
-  },
-  winnerSub: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    color: "#888",
-    textAlign: "center",
-  },
-
   // ── Header ──
   header: {
     flexDirection: "row",
@@ -470,6 +455,9 @@ const styles = StyleSheet.create({
   timerPillEnded: {
     backgroundColor: "#d6f0e0",
   },
+  timerPillWinner: {
+    backgroundColor: "#fdf3dc",
+  },
   timerText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
@@ -513,6 +501,10 @@ const styles = StyleSheet.create({
     borderColor: "rgba(186,26,26,0.25)",
     backgroundColor: "#f3f3f3",
   },
+  cardWinner: {
+    borderColor: "#c8920a",
+    borderWidth: 2,
+  },
 
   // BANNED overlay — full-card version (server-confirmed eliminations)
   bannedOverlay: {
@@ -530,6 +522,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.22)",
   },
+  // Red stamp — used during active gameplay
   bannedStamp: {
     transform: [{ rotate: "-15deg" }],
     borderWidth: 3,
@@ -542,6 +535,46 @@ const styles = StyleSheet.create({
     fontSize: 36,
     letterSpacing: 5,
     color: "#ba1a1a",
+  },
+  // Black stamp — used at game_over
+  bannedStampFinal: {
+    transform: [{ rotate: "-15deg" }],
+    borderWidth: 3,
+    borderColor: "#1b1b1b",
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  bannedTextFinal: {
+    fontFamily: "Newsreader_600SemiBold",
+    fontSize: 36,
+    letterSpacing: 5,
+    color: "#1b1b1b",
+  },
+
+  // Winner overlay
+  winnerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(253,243,220,0.30)",
+  },
+  winnerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#fdf3dc",
+    borderWidth: 2,
+    borderColor: "#c8920a",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+  winnerBadgeText: {
+    fontFamily: "Newsreader_600SemiBold",
+    fontSize: 28,
+    letterSpacing: 3,
+    color: "#5a3800",
   },
 
   // Image
