@@ -9,14 +9,7 @@ import {
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const TIMER_SECONDS = 15;
@@ -70,8 +63,7 @@ const PickBanScreen = () => {
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  const handleVeto = (id: number) =>
-    setVetoedId((prev) => (prev === id ? null : id));
+  const handleVeto = (id: number) => setVetoedId((prev) => (prev === id ? null : id));
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -80,7 +72,7 @@ const PickBanScreen = () => {
         <MyButton style={styles.sideButton} onClick={() => router.back()}>
           <Feather name="arrow-left" size={24} color="black" />
         </MyButton>
-        <Text style={styles.appName}>Taster</Text>
+        <Text style={styles.appName}>Veto</Text>
         <MyButton style={styles.sideButton} onClick={() => {}}>
           <View style={styles.profileCircle}>
             <Feather name="user" size={20} color="#5b5b5b" />
@@ -88,10 +80,7 @@ const PickBanScreen = () => {
         </MyButton>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* ── Hero section ── */}
         <View style={styles.heroSection}>
           <View style={styles.timerPill}>
@@ -100,8 +89,8 @@ const PickBanScreen = () => {
           </View>
           <Text style={styles.title}>Elimination Phase</Text>
           <Text style={styles.subtitle}>
-            Cast your veto. The restaurant with the most votes will be
-            permanently banned from this group's selection.
+            Cast your veto. The restaurant with the most votes will be permanently banned from this
+            group's selection.
           </Text>
         </View>
 
@@ -113,7 +102,6 @@ const PickBanScreen = () => {
 
             return (
               <View key={r.id} style={[styles.card, isBanned && styles.cardBanned]}>
-
                 {/* BANNED stamp overlay */}
                 {isBanned && (
                   <View style={styles.bannedOverlay} pointerEvents="none">

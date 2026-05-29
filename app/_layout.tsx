@@ -17,6 +17,8 @@ export default function RootLayout() {
           <Stack.Screen name="invite" options={{ headerShown: false }} />
           <Stack.Screen name="questionnaire" options={{ headerShown: false }} />
           <Stack.Screen name="questionResults" options={{ headerShown: false }} />
+          <Stack.Screen name="pickBan" options={{ headerShown: false }} />
+          <Stack.Screen name="matched" options={{ headerShown: false }} />
         </Stack>
       </SessionProvider>
     </AuthProvider>
