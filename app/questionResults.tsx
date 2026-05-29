@@ -1,5 +1,6 @@
 import MyButton from "@/components/button";
 import Card from "@/components/card";
+import { useSession } from "@/context/SessionContext";
 import { Inter_400Regular, Inter_600SemiBold, useFonts } from "@expo-google-fonts/inter";
 import {
   Newsreader_400Regular,
@@ -46,6 +47,7 @@ type Restaurant = {
 
 const ResultScreen = () => {
   const router = useRouter();
+  const { sessionId } = useSession();
   const { restaurants: restaurantsParam } = useLocalSearchParams<{ restaurants: string }>();
   const [selectedCard, setSelectedCard] = useState<Restaurant | null>(null);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
@@ -168,7 +170,10 @@ const ResultScreen = () => {
       <View style={styles.buttonWrapper}>
         <MyButton
           onClick={() =>
-            router.push({ pathname: "/pickBan", params: { restaurants: restaurantsParam } })
+            router.push({
+              pathname: "/pickBan",
+              params: { restaurants: restaurantsParam, sessionId: sessionId ?? "" },
+            })
           }
           style={styles.readyButton}
         >

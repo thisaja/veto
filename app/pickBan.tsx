@@ -8,11 +8,12 @@ import {
 } from "@expo-google-fonts/newsreader";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { io, Socket } from "socket.io-client";
 
-const TIMER_SECONDS = 15;
+const SERVER_URL = "http://10.0.0.129:5000";
 
 type Restaurant = {
   id: number;
@@ -26,19 +27,36 @@ type Restaurant = {
   popularItems?: string[];
 };
 
+type GamePhase = "connecting" | "active" | "round_end" | "game_over";
+
 const PickBanScreen = () => {
   const router = useRouter();
-  const { restaurants: restaurantsParam } = useLocalSearchParams<{ restaurants: string }>();
-  const [vetoedId, setVetoedId] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS);
+  const { restaurants: restaurantsParam, sessionId } =
+    useLocalSearchParams<{ restaurants: string; sessionId: string }>();
 
-  const restaurants: Restaurant[] = useMemo(() => {
+  // ── Parse restaurants ────────────────────────────────────────────────────
+  const allRestaurants: Restaurant[] = useMemo(() => {
     try {
       return restaurantsParam ? JSON.parse(restaurantsParam) : [];
     } catch {
       return [];
     }
   }, [restaurantsParam]);
+
+  // ── Game state ───────────────────────────────────────────────────────────
+  const [activeRestaurants, setActiveRestaurants] = useState<Restaurant[]>([]);
+  const [eliminatedIds, setEliminatedIds] = useState<number[]>([]);
+  const [voteCounts, setVoteCounts] = useState<Record<number, number>>({});
+  const [round, setRound] = useState(1);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [myVoteId, setMyVoteId] = useState<number | null>(null);
+  const [gamePhase, setGamePhase] = useState<GamePhase>("connecting");
+  const [justEliminatedId, setJustEliminatedId] = useState<number | null>(null);
+  const [winner, setWinner] = useState<Restaurant | null>(null);
+
+  // ── Refs ─────────────────────────────────────────────────────────────────
+  const socketRef = useRef<Socket | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -49,21 +67,141 @@ const PickBanScreen = () => {
     Newsreader_600SemiBold,
   });
 
+  // ── Socket setup ─────────────────────────────────────────────────────────
   useEffect(() => {
-    if (timeLeft <= 0) return;
-    const interval = setInterval(() => setTimeLeft((t) => t - 1), 1000);
-    return () => clearInterval(interval);
-  }, [timeLeft]);
+    const socket = io(SERVER_URL, {
+      transports: ["websocket"],
+      forceNew: true,
+    });
+    socketRef.current = socket;
 
-  if (!fontsLoaded) return null;
+    socket.on("connect", () => {
+      console.log("[pickBan] socket connected");
+      socket.emit("join_room", {
+        sessionId,
+        restaurants: allRestaurants,
+      });
+    });
 
+    socket.on(
+      "round_start",
+      (data: {
+        round: number;
+        restaurants: Restaurant[];
+        eliminatedIds: number[];
+        timeLeft: number;
+      }) => {
+        setRound(data.round);
+        setActiveRestaurants(data.restaurants);
+        setEliminatedIds(data.eliminatedIds);
+        setVoteCounts({});
+        setMyVoteId(null);
+        setJustEliminatedId(null);
+        setGamePhase("active");
+        startLocalTimer(data.timeLeft);
+      }
+    );
+
+    socket.on(
+      "vote_update",
+      (data: { voteCounts: Record<number, number> }) => {
+        setVoteCounts(data.voteCounts);
+      }
+    );
+
+    socket.on(
+      "round_end",
+      (data: {
+        round: number;
+        eliminatedId: number;
+        eliminatedRestaurant: Restaurant;
+        voteCounts: Record<number, number>;
+      }) => {
+        stopLocalTimer();
+        setVoteCounts(data.voteCounts);
+        setJustEliminatedId(data.eliminatedId);
+        setEliminatedIds((prev) => [...prev, data.eliminatedId]);
+        setGamePhase("round_end");
+      }
+    );
+
+    socket.on("game_over", (data: { winner: Restaurant }) => {
+      stopLocalTimer();
+      setWinner(data.winner);
+      setGamePhase("game_over");
+      // Navigate to matched after a short celebration delay
+      setTimeout(() => {
+        router.replace({
+          pathname: "/matched",
+          params: { restaurant: JSON.stringify(data.winner) },
+        });
+      }, 2000);
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("[pickBan] socket error:", err.message);
+    });
+
+    return () => {
+      stopLocalTimer();
+      socket.disconnect();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  // ── Local countdown ──────────────────────────────────────────────────────
+  const startLocalTimer = (seconds: number) => {
+    stopLocalTimer();
+    setTimeLeft(seconds);
+    timerRef.current = setInterval(() => {
+      setTimeLeft((t) => {
+        if (t <= 1) {
+          stopLocalTimer();
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+  };
+
+  const stopLocalTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  // ── Actions ──────────────────────────────────────────────────────────────
+  const handleVeto = (restaurantId: number) => {
+    if (myVoteId !== null || gamePhase !== "active") return;
+    setMyVoteId(restaurantId);
+    socketRef.current?.emit("cast_vote", { sessionId, restaurantId });
+  };
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  const handleVeto = (id: number) => setVetoedId((prev) => (prev === id ? null : id));
+  if (!fontsLoaded) return null;
+
+  // Merge all restaurants: show active + eliminated together for visual continuity
+  const displayRestaurants = allRestaurants.length > 0 ? allRestaurants : activeRestaurants;
+
+  // ── Phase: game_over celebration ─────────────────────────────────────────
+  if (gamePhase === "game_over" && winner) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.winnerScreen}>
+          <Text style={styles.winnerLabel}>AND THE WINNER IS</Text>
+          <Text style={styles.winnerName}>{winner.header}</Text>
+          <Text style={styles.winnerSub}>Navigating to your result…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -83,30 +221,55 @@ const PickBanScreen = () => {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* ── Hero section ── */}
         <View style={styles.heroSection}>
-          <View style={styles.timerPill}>
-            <Feather name="clock" size={14} color="#93000a" />
-            <Text style={styles.timerText}>{formatTime(timeLeft)} REMAINING</Text>
-          </View>
-          <Text style={styles.title}>Elimination Phase</Text>
+          {gamePhase === "connecting" ? (
+            <View style={styles.timerPill}>
+              <Feather name="wifi" size={14} color="#444" />
+              <Text style={[styles.timerText, { color: "#444" }]}>CONNECTING…</Text>
+            </View>
+          ) : gamePhase === "round_end" ? (
+            <View style={[styles.timerPill, styles.timerPillEnded]}>
+              <Feather name="check-circle" size={14} color="#1b6b3a" />
+              <Text style={[styles.timerText, { color: "#1b6b3a" }]}>ROUND {round} COMPLETE</Text>
+            </View>
+          ) : (
+            <View style={[styles.timerPill, timeLeft <= 10 && styles.timerPillUrgent]}>
+              <Feather name="clock" size={14} color={timeLeft <= 10 ? "#93000a" : "#93000a"} />
+              <Text style={styles.timerText}>{formatTime(timeLeft)} REMAINING</Text>
+            </View>
+          )}
+
+          <Text style={styles.title}>
+            {gamePhase === "round_end" ? "Elimination" : "Elimination Phase"}
+          </Text>
           <Text style={styles.subtitle}>
-            Cast your veto. The restaurant with the most votes will be permanently banned from this
-            group's selection.
+            {gamePhase === "round_end"
+              ? `Round ${round} is over. Next round starting soon…`
+              : `Round ${round} of 4 — Cast your veto. The restaurant with the most votes will be eliminated.`}
           </Text>
         </View>
 
         {/* ── Cards ── */}
         <View style={styles.cardsList}>
-          {restaurants.map((r) => {
-            const isBanned = r.id === vetoedId;
+          {displayRestaurants.map((r) => {
+            const isEliminated = eliminatedIds.includes(r.id);
+            const isJustEliminated = r.id === justEliminatedId;
             const heroImage = r.imageURLs?.[0] ?? r.imageURL;
+            const voteCount = voteCounts[r.id] ?? 0;
+            const isMyVote = myVoteId === r.id;
+            const isActive = !isEliminated;
 
             return (
-              <View key={r.id} style={[styles.card, isBanned && styles.cardBanned]}>
-                {/* BANNED stamp overlay */}
-                {isBanned && (
+              <View
+                key={r.id}
+                style={[styles.card, isEliminated && styles.cardBanned]}
+              >
+                {/* BANNED stamp overlay for eliminated restaurants */}
+                {isEliminated && (
                   <View style={styles.bannedOverlay} pointerEvents="none">
-                    <View style={styles.bannedStamp}>
-                      <Text style={styles.bannedText}>BANNED</Text>
+                    <View style={[styles.bannedStamp, isJustEliminated && styles.bannedStampFresh]}>
+                      <Text style={[styles.bannedText, isJustEliminated && styles.bannedTextFresh]}>
+                        BANNED
+                      </Text>
                     </View>
                   </View>
                 )}
@@ -114,7 +277,6 @@ const PickBanScreen = () => {
                 {/* Image */}
                 <View style={styles.imageBox}>
                   <Image source={{ uri: heroImage }} style={styles.cardImage} />
-                  {/* bottom gradient simulation */}
                   <View style={styles.imageGradient} />
                   <View style={styles.badgesRow}>
                     {r.rating ? (
@@ -125,17 +287,18 @@ const PickBanScreen = () => {
                     ) : (
                       <View />
                     )}
-                    <View style={[styles.voteDot, isBanned && styles.voteDotActive]}>
-                      <Text style={[styles.voteCount, isBanned && styles.voteCountActive]}>
-                        {isBanned ? "1" : "0"}
+                    {/* Live vote count badge */}
+                    <View style={[styles.voteDot, voteCount > 0 && styles.voteDotActive]}>
+                      <Text style={[styles.voteCount, voteCount > 0 && styles.voteCountActive]}>
+                        {voteCount}
                       </Text>
                     </View>
                   </View>
                 </View>
 
                 {/* Content */}
-                <View style={[styles.cardBody, isBanned && styles.cardBodyBanned]}>
-                  <Text style={[styles.cardTitle, isBanned && styles.cardTitleBanned]}>
+                <View style={[styles.cardBody, isEliminated && styles.cardBodyBanned]}>
+                  <Text style={[styles.cardTitle, isEliminated && styles.cardTitleBanned]}>
                     {r.header}
                   </Text>
                   <Text style={styles.cardMeta}>
@@ -144,17 +307,27 @@ const PickBanScreen = () => {
                   </Text>
                   <View style={styles.divider} />
 
-                  {isBanned ? (
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.eliminatedButton,
-                        pressed && styles.vetoButtonPressed,
-                      ]}
-                      onPress={() => handleVeto(r.id)}
-                    >
-                      <Text style={styles.eliminatedText}>Eliminated (1 Vote)</Text>
-                    </Pressable>
+                  {isEliminated ? (
+                    /* Previously eliminated */
+                    <View style={styles.eliminatedButton}>
+                      <Text style={styles.eliminatedText}>
+                        Eliminated — {voteCount} Vote{voteCount !== 1 ? "s" : ""}
+                      </Text>
+                    </View>
+                  ) : isMyVote ? (
+                    /* User already voted for this */
+                    <View style={[styles.vetoButton, styles.vetoButtonVoted]}>
+                      <Ionicons name="checkmark-circle-outline" size={18} color="#1b6b3a" />
+                      <Text style={[styles.vetoButtonText, { color: "#1b6b3a" }]}>Your Veto</Text>
+                    </View>
+                  ) : myVoteId !== null || gamePhase !== "active" ? (
+                    /* Already voted for someone else OR round is over */
+                    <View style={[styles.vetoButton, styles.vetoButtonDisabled]}>
+                      <Ionicons name="ban-outline" size={18} color="#bbb" />
+                      <Text style={[styles.vetoButtonText, { color: "#bbb" }]}>Veto This Option</Text>
+                    </View>
                   ) : (
+                    /* Active, not yet voted */
                     <Pressable
                       style={({ pressed }) => [
                         styles.vetoButton,
@@ -178,6 +351,37 @@ const PickBanScreen = () => {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f9f9f9" },
+
+  // ── Winner screen ──
+  winnerScreen: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+    backgroundColor: "#f9f9f9",
+  },
+  winnerLabel: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    letterSpacing: 2,
+    color: "#8B5A83",
+    marginBottom: 16,
+  },
+  winnerName: {
+    fontFamily: "Newsreader_600SemiBold",
+    fontSize: 48,
+    lineHeight: 54,
+    color: "#1b1b1b",
+    textAlign: "center",
+    letterSpacing: -1,
+    marginBottom: 16,
+  },
+  winnerSub: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
+    color: "#888",
+    textAlign: "center",
+  },
 
   // ── Header ──
   header: {
@@ -232,6 +436,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffdad6",
     marginBottom: 16,
   },
+  timerPillUrgent: {
+    backgroundColor: "#ffdad6",
+  },
+  timerPillEnded: {
+    backgroundColor: "#d6f0e0",
+  },
   timerText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
@@ -271,7 +481,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   cardBanned: {
-    opacity: 0.8,
+    opacity: 0.75,
     borderColor: "rgba(186,26,26,0.25)",
     backgroundColor: "#f3f3f3",
   },
@@ -282,7 +492,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(249,249,249,0.35)",
+    backgroundColor: "rgba(249,249,249,0.30)",
   },
   bannedStamp: {
     transform: [{ rotate: "-15deg" }],
@@ -291,11 +501,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
+  bannedStampFresh: {
+    borderColor: "#ba1a1a",
+  },
   bannedText: {
     fontFamily: "Newsreader_600SemiBold",
     fontSize: 36,
     letterSpacing: 5,
     color: "#1b1b1b",
+  },
+  bannedTextFresh: {
+    color: "#ba1a1a",
   },
 
   // Image
@@ -379,22 +595,30 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    gap: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
     borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: "#c0c0c0",
+    borderWidth: 1,
+    borderColor: "#bdbdbd",
     backgroundColor: "#ffffff",
   },
   vetoButtonPressed: { backgroundColor: "#f3f3f3" },
+  vetoButtonVoted: {
+    borderColor: "#1b6b3a",
+    backgroundColor: "#f0faf4",
+  },
+  vetoButtonDisabled: {
+    borderColor: "#e0e0e0",
+    backgroundColor: "#fafafa",
+  },
   vetoButtonText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
     color: "#555",
   },
 
-  // Eliminated button
+  // Eliminated label
   eliminatedButton: {
     width: "100%",
     alignItems: "center",
