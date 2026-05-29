@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
   bannedStamp: {
     transform: [{ rotate: "-15deg" }],
     borderWidth: 3,
-    borderColor: "#1b1b1b",
+    borderColor: "#ba1a1a",
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
     fontFamily: "Newsreader_600SemiBold",
     fontSize: 36,
     letterSpacing: 5,
-    color: "#1b1b1b",
+    color: "#ba1a1a",
   },
 
   // Image
