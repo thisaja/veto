@@ -12,6 +12,7 @@ import React, { useMemo, useState } from "react";
 import {
   Image,
   Linking,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -58,16 +59,30 @@ const MatchScreen = () => {
   const heroImage = restaurant?.imageURLs?.[0] ?? restaurant?.imageURL;
 
   const handleCopyAddress = async () => {
-    if (!restaurant?.address) return;
-    await Clipboard.setStringAsync(restaurant.address);
+    const text = restaurant?.address ?? restaurant?.header;
+    if (!text) return;
+    await Clipboard.setStringAsync(text);
     setAddressCopied(true);
     setTimeout(() => setAddressCopied(false), 2000);
   };
 
-  const handleDirections = () => {
+  const handleDirections = async () => {
     if (!restaurant) return;
     const query = encodeURIComponent(restaurant.address ?? restaurant.header);
-    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+
+    // Prefer native maps app — iOS → Apple Maps, Android → default geo handler
+    const nativeUrl = Platform.select({
+      ios: `maps://0,0?q=${query}`,
+      android: `geo:0,0?q=${query}`,
+    }) as string;
+    const webFallback = `https://maps.google.com/maps?q=${query}`;
+
+    try {
+      const canOpenNative = await Linking.canOpenURL(nativeUrl);
+      await Linking.openURL(canOpenNative ? nativeUrl : webFallback);
+    } catch {
+      await Linking.openURL(webFallback);
+    }
   };
 
   // Build chip labels: priceRange + label + up to 2 popularItems
@@ -113,7 +128,7 @@ const MatchScreen = () => {
           {/* Rating badge — top right of image */}
           {restaurant?.rating ? (
             <View style={styles.ratingBadge}>
-              <Feather name="star" size={11} color="#1b1b1b" />
+              <Feather name="star" size={11} color="#8B5A83" />
               <Text style={styles.ratingText}>{restaurant.rating}</Text>
             </View>
           ) : null}
@@ -126,19 +141,23 @@ const MatchScreen = () => {
             {restaurant?.label ?? ""}
           </Text>
 
-          {/* Address — tap to copy */}
-          {restaurant?.address ? (
-            <TouchableOpacity
-              style={styles.addressRow}
-              onPress={handleCopyAddress}
-              activeOpacity={0.7}
-            >
-              <Feather name="map-pin" size={14} color="#777" />
-              <Text style={styles.addressText}>
-                {addressCopied ? "Copied!" : restaurant.address}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
+          {/* Location row — always shown, tap copies address to clipboard */}
+          <TouchableOpacity
+            style={styles.locationRow}
+            onPress={handleCopyAddress}
+            activeOpacity={0.75}
+          >
+            <View style={styles.locationPinCircle}>
+              <Feather name="map-pin" size={14} color="#8B5A83" />
+            </View>
+            <Text style={styles.locationText} numberOfLines={2}>
+              {addressCopied
+                ? "Copied to clipboard!"
+                : restaurant?.address
+                ? restaurant.address
+                : `${restaurant?.header ?? "Restaurant"} — tap to copy`}
+            </Text>
+          </TouchableOpacity>
 
           {/* Chips */}
           {chips.length > 0 ? (
@@ -286,16 +305,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#1b1b1b",
   },
-  addressRow: {
+  locationRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 10,
   },
-  addressText: {
+  locationPinCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#f5f0f8",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  locationText: {
     fontFamily: "Inter_400Regular",
     fontSize: 13,
-    color: "#777",
+    color: "#555",
     flex: 1,
+    lineHeight: 18,
   },
   chipsRow: {
     flexDirection: "row",
