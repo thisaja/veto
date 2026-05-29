@@ -256,15 +256,16 @@ const PickBanScreen = () => {
             const heroImage = r.imageURLs?.[0] ?? r.imageURL;
             const voteCount = voteCounts[r.id] ?? 0;
             const isMyVote = myVoteId === r.id;
-            const isActive = !isEliminated;
+            // Show BANNED overlay if already eliminated by server, or if user cast their veto here
+            const showBanned = isEliminated || isMyVote;
 
             return (
               <View
                 key={r.id}
-                style={[styles.card, isEliminated && styles.cardBanned]}
+                style={[styles.card, showBanned && styles.cardBanned]}
               >
-                {/* BANNED stamp overlay for eliminated restaurants */}
-                {isEliminated && (
+                {/* BANNED stamp overlay */}
+                {showBanned && (
                   <View style={styles.bannedOverlay} pointerEvents="none">
                     <View style={[styles.bannedStamp, isJustEliminated && styles.bannedStampFresh]}>
                       <Text style={[styles.bannedText, isJustEliminated && styles.bannedTextFresh]}>
@@ -297,8 +298,8 @@ const PickBanScreen = () => {
                 </View>
 
                 {/* Content */}
-                <View style={[styles.cardBody, isEliminated && styles.cardBodyBanned]}>
-                  <Text style={[styles.cardTitle, isEliminated && styles.cardTitleBanned]}>
+                <View style={[styles.cardBody, showBanned && styles.cardBodyBanned]}>
+                  <Text style={[styles.cardTitle, showBanned && styles.cardTitleBanned]}>
                     {r.header}
                   </Text>
                   <Text style={styles.cardMeta}>
@@ -308,17 +309,18 @@ const PickBanScreen = () => {
                   <View style={styles.divider} />
 
                   {isEliminated ? (
-                    /* Previously eliminated */
+                    /* Confirmed eliminated by server */
                     <View style={styles.eliminatedButton}>
                       <Text style={styles.eliminatedText}>
                         Eliminated — {voteCount} Vote{voteCount !== 1 ? "s" : ""}
                       </Text>
                     </View>
                   ) : isMyVote ? (
-                    /* User already voted for this */
-                    <View style={[styles.vetoButton, styles.vetoButtonVoted]}>
-                      <Ionicons name="checkmark-circle-outline" size={18} color="#1b6b3a" />
-                      <Text style={[styles.vetoButtonText, { color: "#1b6b3a" }]}>Your Veto</Text>
+                    /* User voted for this — show banned label */
+                    <View style={styles.eliminatedButton}>
+                      <Text style={styles.eliminatedText}>
+                        Your Veto — {voteCount} Vote{voteCount !== 1 ? "s" : ""}
+                      </Text>
                     </View>
                   ) : myVoteId !== null || gamePhase !== "active" ? (
                     /* Already voted for someone else OR round is over */
@@ -604,10 +606,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
   },
   vetoButtonPressed: { backgroundColor: "#f3f3f3" },
-  vetoButtonVoted: {
-    borderColor: "#1b6b3a",
-    backgroundColor: "#f0faf4",
-  },
   vetoButtonDisabled: {
     borderColor: "#e0e0e0",
     backgroundColor: "#fafafa",
