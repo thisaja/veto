@@ -99,8 +99,9 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
       >
-        {/* ── Wordmark ── */}
+        {/* ── Wordmark + tagline ── */}
         <Text style={styles.wordmark}>Veto</Text>
+        <Text style={styles.tagline}>Group dining,{"\n"}decided together.</Text>
 
         {/* ════════════════════════════
             HOST A SESSION CARD
@@ -200,9 +201,18 @@ const styles = StyleSheet.create({
 
   wordmark: {
     fontFamily: "Newsreader_400Regular_Italic",
-    fontSize: 20,
-    color: "#bbb",
-    marginBottom: 20,
+    fontSize: 52,
+    color: "#1b1b1b",
+    letterSpacing: -1,
+    marginBottom: 12,
+  },
+  tagline: {
+    fontFamily: "Newsreader_600SemiBold",
+    fontSize: 36,
+    lineHeight: 42,
+    color: "#1b1b1b",
+    letterSpacing: -0.5,
+    marginBottom: 32,
   },
 
   // ── Cards ──
