@@ -260,7 +260,6 @@ const PickBanScreen = () => {
         <View style={styles.cardsList}>
           {displayRestaurants.map((r) => {
             const isEliminated = eliminatedIds.includes(r.id);
-            const isJustEliminated = r.id === justEliminatedId;
             const heroImage = r.imageURLs?.[0] ?? r.imageURL;
             const voteCount = voteCounts[r.id] ?? 0;
             const isMyVote = myVoteId === r.id;
@@ -274,10 +273,8 @@ const PickBanScreen = () => {
                 {/* Full-card BANNED overlay: server-confirmed eliminations only */}
                 {isEliminated && (
                   <View style={styles.bannedOverlay} pointerEvents="none">
-                    <View style={[styles.bannedStamp, isJustEliminated && styles.bannedStampFresh]}>
-                      <Text style={[styles.bannedText, isJustEliminated && styles.bannedTextFresh]}>
-                        BANNED
-                      </Text>
+                    <View style={styles.bannedStamp}>
+                      <Text style={styles.bannedText}>BANNED</Text>
                     </View>
                   </View>
                 )}
@@ -540,17 +537,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
-  bannedStampFresh: {
-    borderColor: "#ba1a1a",
-  },
   bannedText: {
     fontFamily: "Newsreader_600SemiBold",
     fontSize: 36,
     letterSpacing: 5,
     color: "#1b1b1b",
-  },
-  bannedTextFresh: {
-    color: "#ba1a1a",
   },
 
   // Image
