@@ -263,9 +263,16 @@ const PickBanScreen = () => {
             const isMyVote = myVoteId === r.id;
             const isGameOver = gamePhase === "game_over";
             const isWinner = isGameOver && winner?.id === r.id;
-            // Stamps are red during play, flip to black at game_over
-            const stampStyle = isGameOver ? styles.bannedStampFinal : styles.bannedStamp;
-            const stampTextStyle = isGameOver ? styles.bannedTextFinal : styles.bannedText;
+            const isJustEliminated = r.id === justEliminatedId;
+            // Eliminated overlay: red only while this is the freshly-eliminated card
+            // (round_end phase). Turns black as soon as round_start fires and
+            // justEliminatedId resets to null, or immediately at game_over.
+            const useRedStamp = isJustEliminated && !isGameOver;
+            const stampStyle = useRedStamp ? styles.bannedStamp : styles.bannedStampFinal;
+            const stampTextStyle = useRedStamp ? styles.bannedText : styles.bannedTextFinal;
+            // Tentative vote preview always uses red (still in-play)
+            const tentativeStampStyle = styles.bannedStamp;
+            const tentativeStampTextStyle = styles.bannedText;
 
             return (
               <View
@@ -303,8 +310,8 @@ const PickBanScreen = () => {
                   {/* Image-only BANNED overlay for user's current tentative vote */}
                   {isMyVote && !isEliminated && (
                     <View style={styles.imageBannedOverlay} pointerEvents="none">
-                      <View style={stampStyle}>
-                        <Text style={stampTextStyle}>BANNED</Text>
+                      <View style={tentativeStampStyle}>
+                        <Text style={tentativeStampTextStyle}>BANNED</Text>
                       </View>
                     </View>
                   )}
@@ -319,12 +326,14 @@ const PickBanScreen = () => {
                     ) : (
                       <View />
                     )}
-                    {/* Live vote count — always visible */}
-                    <View style={[styles.voteDot, voteCount > 0 && styles.voteDotActive]}>
-                      <Text style={[styles.voteCount, voteCount > 0 && styles.voteCountActive]}>
-                        {voteCount}
-                      </Text>
-                    </View>
+                    {/* Live vote count — hidden once eliminated */}
+                    {!isEliminated && (
+                      <View style={[styles.voteDot, voteCount > 0 && styles.voteDotActive]}>
+                        <Text style={[styles.voteCount, voteCount > 0 && styles.voteCountActive]}>
+                          {voteCount}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
 
@@ -337,51 +346,48 @@ const PickBanScreen = () => {
                     {r.label}
                     {r.priceRange ? ` • ${r.priceRange}` : ""}
                   </Text>
-                  <View style={styles.divider} />
-
-                  {isEliminated ? (
-                    /* Server-confirmed — locked label */
-                    <View style={styles.eliminatedButton}>
-                      <Text style={styles.eliminatedText}>
-                        Eliminated — {voteCount} Vote{voteCount !== 1 ? "s" : ""}
-                      </Text>
-                    </View>
-                  ) : isMyVote ? (
-                    /* User's current vote — visible count, tap to unvote or switch */
-                    <TouchableOpacity
-                      style={styles.myVoteButton}
-                      onPress={() => handleVeto(r.id)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.vetoButtonContent}>
-                        <Ionicons name="ban-outline" size={18} color="#ba1a1a" />
-                        <Text style={styles.myVoteButtonText}>
-                          Your Veto · {voteCount} Vote{voteCount !== 1 ? "s" : ""}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  ) : gamePhase !== "active" ? (
-                    /* Round over — locked */
-                    <View style={[styles.vetoButton, styles.vetoButtonDisabled]}>
-                      <View style={styles.vetoButtonContent}>
-                        <Ionicons name="ban-outline" size={18} color="#c0c0c0" />
-                        <Text style={[styles.vetoButtonText, styles.vetoButtonTextDisabled]}>
-                          Veto This Option
-                        </Text>
-                      </View>
-                    </View>
-                  ) : (
-                    /* Active — always tappable, switch vote freely */
-                    <TouchableOpacity
-                      style={styles.vetoButton}
-                      onPress={() => handleVeto(r.id)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.vetoButtonContent}>
-                        <Ionicons name="ban-outline" size={18} color="#1b1b1b" />
-                        <Text style={styles.vetoButtonText}>Veto This Option</Text>
-                      </View>
-                    </TouchableOpacity>
+                  {/* Divider + action button — hidden for eliminated cards */}
+                  {!isEliminated && (
+                    <>
+                      <View style={styles.divider} />
+                      {isMyVote ? (
+                        /* User's current vote — visible count, tap to unvote or switch */
+                        <TouchableOpacity
+                          style={styles.myVoteButton}
+                          onPress={() => handleVeto(r.id)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.vetoButtonContent}>
+                            <Ionicons name="ban-outline" size={18} color="#ba1a1a" />
+                            <Text style={styles.myVoteButtonText}>
+                              Your Veto · {voteCount} Vote{voteCount !== 1 ? "s" : ""}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ) : gamePhase !== "active" ? (
+                        /* Round over — locked */
+                        <View style={[styles.vetoButton, styles.vetoButtonDisabled]}>
+                          <View style={styles.vetoButtonContent}>
+                            <Ionicons name="ban-outline" size={18} color="#c0c0c0" />
+                            <Text style={[styles.vetoButtonText, styles.vetoButtonTextDisabled]}>
+                              Veto This Option
+                            </Text>
+                          </View>
+                        </View>
+                      ) : (
+                        /* Active — always tappable, switch vote freely */
+                        <TouchableOpacity
+                          style={styles.vetoButton}
+                          onPress={() => handleVeto(r.id)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.vetoButtonContent}>
+                            <Ionicons name="ban-outline" size={18} color="#1b1b1b" />
+                            <Text style={styles.vetoButtonText}>Veto This Option</Text>
+                          </View>
+                        </TouchableOpacity>
+                      )}
+                    </>
                   )}
                 </View>
               </View>
@@ -681,22 +687,6 @@ const styles = StyleSheet.create({
   },
   vetoButtonTextDisabled: {
     color: "#c0c0c0",
-  },
-
-  // Server-confirmed eliminated label (non-interactive)
-  eliminatedButton: {
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-    borderRadius: 32,
-    backgroundColor: "#ebebeb",
-  },
-  eliminatedText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-    color: "#888",
   },
 
   // User's current tentative vote — shows live count, always tappable
