@@ -19,6 +19,10 @@ export default function RootLayout() {
           <Stack.Screen name="questionResults" options={{ headerShown: false }} />
           <Stack.Screen name="pickBan" options={{ headerShown: false }} />
           <Stack.Screen name="matched" options={{ headerShown: false }} />
+          <Stack.Screen name="terms"   options={{ headerShown: false }} />
+          <Stack.Screen name="privacy" options={{ headerShown: false }} />
+          <Stack.Screen name="scanQR"     options={{ headerShown: false }} />
+          <Stack.Screen name="joinLobby" options={{ headerShown: false }} />
         </Stack>
       </SessionProvider>
     </AuthProvider>

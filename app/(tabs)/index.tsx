@@ -5,18 +5,15 @@ import {
   Newsreader_400Regular_Italic,
   Newsreader_600SemiBold,
 } from "@expo-google-fonts/newsreader";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -47,14 +44,11 @@ function relativeTime(iso: string): string {
 }
 
 export default function HomeScreen() {
-  const router = useRouter();
+  const router   = useRouter();
   const { userId, loginAsGuest } = useAuth();
 
   const [recentGroups,  setRecentGroups]  = useState<RecentGroup[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
-  const [codeModal,     setCodeModal]     = useState(false);
-  const [sessionCode,   setSessionCode]   = useState("");
-  const [joiningCode,   setJoiningCode]   = useState(false);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -83,27 +77,6 @@ export default function HomeScreen() {
     router.push("/createSession");
   };
 
-  const handleJoinByCode = async () => {
-    const code = sessionCode.trim();
-    if (!code) return;
-    setJoiningCode(true);
-    try {
-      const res  = await fetch(`${API_BASE}/session/validate/${code}`);
-      const json = await res.json();
-      if (json.success && json.sessionId) {
-        setCodeModal(false);
-        setSessionCode("");
-        router.push({ pathname: "/invite", params: { sessionId: json.sessionId, isGuest: "true" } });
-      } else {
-        alert("Session not found. Check the code and try again.");
-      }
-    } catch {
-      alert("Couldn't connect. Please try again.");
-    } finally {
-      setJoiningCode(false);
-    }
-  };
-
   const handleGroupPress = (g: RecentGroup) => {
     if (!g.matchedRestaurant) return;
     router.push({
@@ -126,77 +99,55 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
       >
+        {/* ── Wordmark ── */}
+        <Text style={styles.wordmark}>Veto</Text>
 
-        {/* ── Wordmark + title ── */}
-        <View style={styles.titleBlock}>
-          <Text style={styles.wordmark}>Veto</Text>
-          <Text style={styles.pageTitle}>Start a Session</Text>
+        {/* ════════════════════════════
+            HOST A SESSION CARD
+        ════════════════════════════ */}
+        <View style={styles.card}>
+          <View style={styles.cardTop}>
+            <View style={styles.cardTexts}>
+              <Text style={styles.cardHeading}>Host a Session</Text>
+              <Text style={styles.cardDesc}>
+                Lead the way. Choose a location, set your filters, and invite your circle.
+              </Text>
+            </View>
+            <MaterialIcons name="restaurant" size={56} color="#d4cfc8" style={styles.decorIcon} />
+          </View>
+          <MyButton onClick={handleHostSession} style={styles.cardPrimaryBtn}>
+            <Text style={styles.cardPrimaryBtnText}>CREATE SESSION</Text>
+            <Feather name="plus" size={15} color="#fff" />
+          </MyButton>
         </View>
 
-        {/* ══════════════════════════════════════
-            JOIN AN EXISTING LOBBY
-        ══════════════════════════════════════ */}
-        <Text style={styles.sectionLabel}>JOIN AN EXISTING LOBBY</Text>
-        <Text style={styles.sectionHeading}>Jump into a friend's room</Text>
-        <Text style={styles.sectionSub}>
-          Scan a host's QR code or enter their invite link to join an active session.
-        </Text>
-
-        {/* Scan QR row */}
-        <TouchableOpacity
-          style={styles.actionRow}
-          activeOpacity={0.75}
-          onPress={() => router.push("/scanQR")}
-        >
-          <View style={styles.actionIcon}>
-            <Feather name="camera" size={19} color="#1b1b1b" />
+        {/* ════════════════════════════
+            JOIN A LOBBY CARD
+        ════════════════════════════ */}
+        <View style={styles.card}>
+          <View style={styles.cardTop}>
+            <View style={styles.cardTexts}>
+              <Text style={styles.cardHeading}>Join a Lobby</Text>
+              <Text style={styles.cardDesc}>
+                Received an invite? Enter the code or scan the host's QR to jump straight in.
+              </Text>
+            </View>
+            <Feather name="users" size={52} color="#d4cfc8" style={styles.decorIcon} />
           </View>
-          <View style={styles.actionText}>
-            <Text style={styles.actionLabel}>Scan QR Code</Text>
-            <Text style={styles.actionSub}>Point your camera at the host's code</Text>
-          </View>
-          <Feather name="chevron-right" size={16} color="#bbb" />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cardSecondaryBtn}
+            activeOpacity={0.8}
+            onPress={() => router.push("/joinLobby")}
+          >
+            <Text style={styles.cardSecondaryBtnText}>SCAN QR OR ENTER CODE</Text>
+          </TouchableOpacity>
+        </View>
 
-        {/* Enter code row */}
-        <TouchableOpacity
-          style={[styles.actionRow, { marginBottom: 0 }]}
-          activeOpacity={0.75}
-          onPress={() => setCodeModal(true)}
-        >
-          <View style={styles.actionIcon}>
-            <Feather name="link" size={19} color="#1b1b1b" />
-          </View>
-          <View style={styles.actionText}>
-            <Text style={styles.actionLabel}>Enter Invite Code</Text>
-            <Text style={styles.actionSub}>Type or paste a session code or link</Text>
-          </View>
-          <Feather name="chevron-right" size={16} color="#bbb" />
-        </TouchableOpacity>
-
-        {/* ── Divider ── */}
-        <View style={styles.divider} />
-
-        {/* ══════════════════════════════════════
-            HOST A NEW LOBBY
-        ══════════════════════════════════════ */}
-        <Text style={styles.sectionLabel}>HOST A NEW LOBBY</Text>
-        <Text style={styles.sectionHeading}>Start something new</Text>
-        <Text style={styles.sectionSub}>
-          Choose a location, set filters, and invite your group to start tasting.
-        </Text>
-
-        <MyButton onClick={handleHostSession} style={styles.createBtn}>
-          <Feather name="plus" size={17} color="white" />
-          <Text style={styles.createBtnText}>Create Session</Text>
-        </MyButton>
-
-        {/* ══════════════════════════════════════
+        {/* ════════════════════════════
             RECENT GROUPS
-        ══════════════════════════════════════ */}
+        ════════════════════════════ */}
         {userId && (
-          <>
-            <View style={styles.divider} />
+          <View style={styles.recentSection}>
             <Text style={styles.sectionLabel}>RECENT GROUPS</Text>
 
             {loadingGroups ? (
@@ -228,9 +179,7 @@ export default function HomeScreen() {
                         {g.matchedRestaurant ?? "Session"}
                       </Text>
                       <Text style={styles.groupMeta}>
-                        {g.memberCount} member{g.memberCount !== 1 ? "s" : ""}
-                        {" · "}
-                        {relativeTime(g.createdAt)}
+                        {g.memberCount} member{g.memberCount !== 1 ? "s" : ""}{" · "}{relativeTime(g.createdAt)}
                       </Text>
                     </View>
                     <Feather name="chevron-right" size={16} color="#bbb" />
@@ -238,155 +187,96 @@ export default function HomeScreen() {
                 ))}
               </View>
             )}
-          </>
-        )}
-
-      </ScrollView>
-
-      {/* ── Enter-code bottom sheet ── */}
-      <Modal
-        visible={codeModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setCodeModal(false)}
-      >
-        <View style={styles.modalRoot}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setCodeModal(false)} />
-          <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Enter Invite Code</Text>
-            <Text style={styles.sheetSub}>
-              Paste the invite link or type the short code from the host's screen.
-            </Text>
-            <View style={styles.codeRow}>
-              <TextInput
-                style={styles.codeInput}
-                placeholder="Code or invite link"
-                placeholderTextColor="#bbb"
-                value={sessionCode}
-                onChangeText={setSessionCode}
-                autoCapitalize="none"
-                autoCorrect={false}
-                onSubmitEditing={handleJoinByCode}
-              />
-              <Pressable
-                style={[
-                  styles.codeSubmitBtn,
-                  (!sessionCode.trim() || joiningCode) && styles.codeSubmitBtnOff,
-                ]}
-                onPress={handleJoinByCode}
-                disabled={!sessionCode.trim() || joiningCode}
-              >
-                {joiningCode
-                  ? <ActivityIndicator size="small" color="#fff" />
-                  : <Feather name="arrow-right" size={20} color="#fff" />}
-              </Pressable>
-            </View>
           </View>
-        </View>
-      </Modal>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#fff" },
-  scroll: { paddingHorizontal: 24, paddingBottom: 48, paddingTop: 8 },
+  scroll: { paddingHorizontal: 20, paddingBottom: 48, paddingTop: 4 },
 
-  // ── Title block ──
-  titleBlock: { marginBottom: 32, gap: 2 },
   wordmark: {
     fontFamily: "Newsreader_400Regular_Italic",
-    fontSize: 18,
-    color: "#999",
-  },
-  pageTitle: {
-    fontFamily: "Newsreader_600SemiBold",
-    fontSize: 38,
-    lineHeight: 44,
-    color: "#1b1b1b",
-    letterSpacing: -0.5,
+    fontSize: 20,
+    color: "#bbb",
+    marginBottom: 20,
   },
 
-  // ── Section labels ──
+  // ── Cards ──
+  card: {
+    backgroundColor: "#F0EEEA",
+    borderRadius: 20,
+    padding: 22,
+    marginBottom: 14,
+  },
+  cardTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 20,
+    gap: 8,
+  },
+  cardTexts: { flex: 1 },
+  cardHeading: {
+    fontFamily: "Newsreader_600SemiBold",
+    fontSize: 24,
+    color: "#1b1b1b",
+    marginBottom: 6,
+    lineHeight: 28,
+  },
+  cardDesc: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: "#666",
+    lineHeight: 19,
+  },
+  decorIcon: {
+    marginTop: 2,
+    opacity: 0.9,
+  },
+
+  // Primary (black filled)
+  cardPrimaryBtn: { width: "100%", height: 52 },
+  cardPrimaryBtnText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    letterSpacing: 1.2,
+    color: "#fff",
+  },
+
+  // Secondary (light pill)
+  cardSecondaryBtn: {
+    width: "100%",
+    height: 52,
+    borderRadius: 32,
+    backgroundColor: "#E4E1DB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardSecondaryBtnText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+    letterSpacing: 1.5,
+    color: "#555",
+  },
+
+  // ── Recent groups ──
+  recentSection: { marginTop: 10 },
   sectionLabel: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 11,
     letterSpacing: 2,
     color: "#999",
-    marginBottom: 6,
+    marginBottom: 10,
   },
-  sectionHeading: {
-    fontFamily: "Newsreader_600SemiBold",
-    fontSize: 24,
-    color: "#1b1b1b",
-    marginBottom: 4,
-  },
-  sectionSub: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    color: "#666",
-    lineHeight: 19,
-    marginBottom: 16,
-  },
-
-  // ── Action rows (same style as invite.tsx) ──
-  actionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#e8e6e1",
-    marginBottom: 8,
-    gap: 14,
-  },
-  actionIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: "#f0eeea",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionText: { flex: 1, gap: 2 },
-  actionLabel: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 15,
-    color: "#1b1b1b",
-  },
-  actionSub: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    color: "#999",
-  },
-
-  // ── Divider ──
-  divider: {
-    height: 1,
-    backgroundColor: "#f0eeea",
-    marginVertical: 28,
-  },
-
-  // ── Create session button ──
-  createBtn: { width: "100%", height: 56 },
-  createBtnText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 15,
-    color: "#fff",
-  },
-
-  // ── Recent groups ──
   emptyText: {
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     color: "#bbb",
-    marginTop: 8,
   },
   groupList: {
-    marginTop: 4,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#e8e6e1",
@@ -428,50 +318,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#999",
   },
-
-  // ── Code sheet ──
-  modalRoot: { flex: 1 },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
-  sheet: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-  },
-  sheetHandle: {
-    width: 40, height: 4, borderRadius: 2, backgroundColor: "#d0d0d0",
-    alignSelf: "center", marginTop: 12, marginBottom: 20,
-  },
-  sheetTitle: {
-    fontFamily: "Newsreader_600SemiBold",
-    fontSize: 26,
-    color: "#1b1b1b",
-    marginBottom: 6,
-  },
-  sheetSub: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    color: "#888",
-    lineHeight: 19,
-    marginBottom: 20,
-  },
-  codeRow: { flexDirection: "row", gap: 10 },
-  codeInput: {
-    flex: 1,
-    height: 52,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: "#e0e0e0",
-    paddingHorizontal: 16,
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    color: "#1b1b1b",
-    backgroundColor: "#fafafa",
-  },
-  codeSubmitBtn: {
-    width: 52, height: 52, borderRadius: 14,
-    backgroundColor: "#1b1b1b", alignItems: "center", justifyContent: "center",
-  },
-  codeSubmitBtnOff: { backgroundColor: "#ccc" },
 });
