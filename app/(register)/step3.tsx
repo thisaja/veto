@@ -41,7 +41,7 @@ const Step3Screen = () => {
       formData.append("photo", image as any);
     }
     try {
-      const response = await fetch("http://localhost:5000/register", {
+      const response = await fetch("http://10.0.0.129:5000/register", {
         method: "POST",
         body: formData,
       });
@@ -51,7 +51,7 @@ const Step3Screen = () => {
         throw e;
       }
       const json = await response.json();
-      setAuth({ userId: json.userId, token: json.access_token, isGuest: false, guestId: null });
+      setAuth({ userId: json.userId, token: json.access_token, isGuest: false, guestId: null, diningAlias: json.diningAlias ?? null });
       router.dismissAll();
       router.replace("/(tabs)");
     } catch (error) {

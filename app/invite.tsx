@@ -59,7 +59,7 @@ function avatarColor(id: string) {
 
 const InviteScreen = () => {
   const router = useRouter();
-  const { userId, guestId, isGuest: authIsGuest } = useAuth();
+  const { userId, guestId, isGuest: authIsGuest, diningAlias } = useAuth();
   const { sessionId: ctxSessionId } = useSession();
 
   const { sessionId: paramSessionId, isGuest: paramIsGuest } =
@@ -130,7 +130,7 @@ const InviteScreen = () => {
     socket.on("connect", () => {
       socket.emit("join_lobby", {
         sessionId,
-        alias:   isGuestMode ? (authIsGuest ? "Guest" : "Member") : "Host",
+        alias:   diningAlias ?? (isGuestMode ? "Guest" : "Host"),
         isHost:  !isGuestMode,
         userId:  userId  ?? undefined,
         guestId: guestId ?? undefined,

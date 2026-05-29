@@ -48,7 +48,7 @@ const LoginScreen = () => {
         });
         const json = await response.json();
         if (response.ok) {
-          setAuth({ userId: json.userId, token: json.access_token, isGuest: false, guestId: null });
+          setAuth({ userId: json.userId, token: json.access_token, isGuest: false, guestId: null, diningAlias: json.diningAlias ?? null });
           router.navigate("/(tabs)");
         }
       } catch (error) {

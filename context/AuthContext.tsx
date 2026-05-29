@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState } from "react";
 
 type AuthState = {
-  userId: number | null;
-  token: string | null;
+  userId: string | null;       // UUID from backend
+  token: string | null;        // JWT Bearer token
   isGuest: boolean;
   guestId: string | null;
+  diningAlias: string | null;  // @username shown in sessions and used for friend lookup
 };
 
 type AuthContextType = AuthState & {
@@ -34,6 +35,7 @@ const DEFAULT_STATE: AuthState = {
   token: null,
   isGuest: false,
   guestId: null,
+  diningAlias: null,
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
