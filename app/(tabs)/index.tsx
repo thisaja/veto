@@ -118,7 +118,6 @@ export default function HomeScreen() {
           </View>
           <MyButton onClick={handleHostSession} style={styles.cardPrimaryBtn}>
             <Text style={styles.cardPrimaryBtnText}>CREATE SESSION</Text>
-            <Feather name="plus" size={15} color="#fff" />
           </MyButton>
         </View>
 
@@ -135,13 +134,9 @@ export default function HomeScreen() {
             </View>
             <Feather name="users" size={52} color="#d4cfc8" style={styles.decorIcon} />
           </View>
-          <TouchableOpacity
-            style={styles.cardSecondaryBtn}
-            activeOpacity={0.8}
-            onPress={() => router.push("/joinLobby")}
-          >
-            <Text style={styles.cardSecondaryBtnText}>SCAN QR OR ENTER CODE</Text>
-          </TouchableOpacity>
+          <MyButton onClick={() => router.push("/joinLobby")} style={styles.cardPrimaryBtn}>
+            <Text style={styles.cardPrimaryBtnText}>SCAN QR OR ENTER CODE</Text>
+          </MyButton>
         </View>
 
         {/* ════════════════════════════
