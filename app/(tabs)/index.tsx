@@ -141,49 +141,49 @@ export default function HomeScreen() {
         {/* ════════════════════════════
             RECENT GROUPS
         ════════════════════════════ */}
-        {userId && (
-          <View style={styles.recentSection}>
-            <Text style={styles.sectionLabel}>RECENT GROUPS</Text>
+        <View style={styles.recentSection}>
+          <Text style={styles.sectionLabel}>RECENT GROUPS</Text>
 
-            {loadingGroups ? (
-              <ActivityIndicator size="small" color="#999" style={{ marginTop: 12 }} />
-            ) : recentGroups.length === 0 ? (
-              <Text style={styles.emptyText}>Your past sessions will appear here.</Text>
-            ) : (
-              <View style={styles.groupList}>
-                {recentGroups.map((g, i) => (
-                  <TouchableOpacity
-                    key={g.sessionId}
-                    style={[
-                      styles.groupRow,
-                      i < recentGroups.length - 1 && styles.groupRowDivider,
-                    ]}
-                    activeOpacity={0.7}
-                    onPress={() => handleGroupPress(g)}
-                    disabled={!g.matchedRestaurant}
-                  >
-                    {g.imageURL ? (
-                      <Image source={{ uri: g.imageURL }} style={styles.groupAvatar} />
-                    ) : (
-                      <View style={styles.groupAvatarFallback}>
-                        <Feather name="coffee" size={18} color="#bbb" />
-                      </View>
-                    )}
-                    <View style={styles.groupInfo}>
-                      <Text style={styles.groupName} numberOfLines={1}>
-                        {g.matchedRestaurant ?? "Session"}
-                      </Text>
-                      <Text style={styles.groupMeta}>
-                        {g.memberCount} member{g.memberCount !== 1 ? "s" : ""}{" · "}{relativeTime(g.createdAt)}
-                      </Text>
+          {!userId ? (
+            <Text style={styles.emptyText}>Sign in to see your past sessions here.</Text>
+          ) : loadingGroups ? (
+            <ActivityIndicator size="small" color="#999" style={{ marginTop: 12 }} />
+          ) : recentGroups.length === 0 ? (
+            <Text style={styles.emptyText}>Your past sessions will appear here.</Text>
+          ) : (
+            <View style={styles.groupList}>
+              {recentGroups.map((g, i) => (
+                <TouchableOpacity
+                  key={g.sessionId}
+                  style={[
+                    styles.groupRow,
+                    i < recentGroups.length - 1 && styles.groupRowDivider,
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => handleGroupPress(g)}
+                  disabled={!g.matchedRestaurant}
+                >
+                  {g.imageURL ? (
+                    <Image source={{ uri: g.imageURL }} style={styles.groupAvatar} />
+                  ) : (
+                    <View style={styles.groupAvatarFallback}>
+                      <Feather name="coffee" size={18} color="#bbb" />
                     </View>
-                    <Feather name="chevron-right" size={16} color="#bbb" />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
+                  )}
+                  <View style={styles.groupInfo}>
+                    <Text style={styles.groupName} numberOfLines={1}>
+                      {g.matchedRestaurant ?? "Session"}
+                    </Text>
+                    <Text style={styles.groupMeta}>
+                      {g.memberCount} member{g.memberCount !== 1 ? "s" : ""}{" · "}{relativeTime(g.createdAt)}
+                    </Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color="#bbb" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
