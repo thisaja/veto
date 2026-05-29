@@ -173,9 +173,17 @@ const PickBanScreen = () => {
 
   // ── Actions ──────────────────────────────────────────────────────────────
   const handleVeto = (restaurantId: number) => {
-    if (myVoteId !== null || gamePhase !== "active") return;
-    setMyVoteId(restaurantId);
-    socketRef.current?.emit("cast_vote", { sessionId, restaurantId });
+    if (gamePhase !== "active") return;
+
+    if (myVoteId === restaurantId) {
+      // Tapping the same card again removes the vote
+      setMyVoteId(null);
+      socketRef.current?.emit("cast_vote", { sessionId, restaurantId: null });
+    } else {
+      // Switch vote to this restaurant (server removes old vote automatically)
+      setMyVoteId(restaurantId);
+      socketRef.current?.emit("cast_vote", { sessionId, restaurantId });
+    }
   };
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -316,20 +324,26 @@ const PickBanScreen = () => {
                       </Text>
                     </View>
                   ) : isMyVote ? (
-                    /* User voted for this — show banned label */
-                    <View style={styles.eliminatedButton}>
+                    /* User's current vote — tapping removes it */
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.eliminatedButton,
+                        pressed && { opacity: 0.7 },
+                      ]}
+                      onPress={() => handleVeto(r.id)}
+                    >
                       <Text style={styles.eliminatedText}>
                         Your Veto — {voteCount} Vote{voteCount !== 1 ? "s" : ""}
                       </Text>
-                    </View>
-                  ) : myVoteId !== null || gamePhase !== "active" ? (
-                    /* Already voted for someone else OR round is over */
+                    </Pressable>
+                  ) : gamePhase !== "active" ? (
+                    /* Round is over — lock all buttons */
                     <View style={[styles.vetoButton, styles.vetoButtonDisabled]}>
                       <Ionicons name="ban-outline" size={18} color="#bbb" />
                       <Text style={[styles.vetoButtonText, { color: "#bbb" }]}>Veto This Option</Text>
                     </View>
                   ) : (
-                    /* Active, not yet voted */
+                    /* Active — always tappable, even if already voted elsewhere */
                     <Pressable
                       style={({ pressed }) => [
                         styles.vetoButton,
@@ -337,7 +351,7 @@ const PickBanScreen = () => {
                       ]}
                       onPress={() => handleVeto(r.id)}
                     >
-                      <Ionicons name="ban-outline" size={18} color="#555" />
+                      <Ionicons name="ban-outline" size={18} color="#1b1b1b" />
                       <Text style={styles.vetoButtonText}>Veto This Option</Text>
                     </Pressable>
                   )}
@@ -597,23 +611,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
-    paddingVertical: 18,
+    gap: 10,
+    paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#bdbdbd",
+    borderWidth: 1.5,
+    borderColor: "#1b1b1b",
     backgroundColor: "#ffffff",
   },
   vetoButtonPressed: { backgroundColor: "#f3f3f3" },
   vetoButtonDisabled: {
-    borderColor: "#e0e0e0",
+    borderColor: "#d5d5d5",
     backgroundColor: "#fafafa",
   },
   vetoButtonText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
-    color: "#555",
+    color: "#1b1b1b",
   },
 
   // Eliminated label
