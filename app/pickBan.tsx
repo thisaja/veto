@@ -1,4 +1,5 @@
 import MyButton from "@/components/button";
+import { useSession } from "@/context/SessionContext";
 import { Inter_400Regular, Inter_600SemiBold, useFonts } from "@expo-google-fonts/inter";
 import {
   Newsreader_400Regular,
@@ -8,8 +9,8 @@ import {
 } from "@expo-google-fonts/newsreader";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { io, Socket } from "socket.io-client";
 
@@ -27,21 +28,17 @@ type Restaurant = {
   popularItems?: string[];
 };
 
-type GamePhase = "connecting" | "active" | "round_end" | "game_over";
+type GamePhase = "connecting" | "active" | "round_end" | "game_over" | "error";
 
 const PickBanScreen = () => {
   const router = useRouter();
-  const { restaurants: restaurantsParam, sessionId } =
-    useLocalSearchParams<{ restaurants: string; sessionId: string }>();
+  const { sessionId, restaurants: restaurantsParam } = useLocalSearchParams<{ sessionId: string; restaurants?: string }>();
+  const { setResumePath } = useSession();
 
-  // ── Parse restaurants ────────────────────────────────────────────────────
-  const allRestaurants: Restaurant[] = useMemo(() => {
-    try {
-      return restaurantsParam ? JSON.parse(restaurantsParam) : [];
-    } catch {
-      return [];
-    }
-  }, [restaurantsParam]);
+  // Full restaurant list — seeded from URL params, updated by server room_info
+  const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>(() => {
+    try { return restaurantsParam ? JSON.parse(restaurantsParam) : []; } catch { return []; }
+  });
 
   // ── Game state ───────────────────────────────────────────────────────────
   const [activeRestaurants, setActiveRestaurants] = useState<Restaurant[]>([]);
@@ -53,10 +50,17 @@ const PickBanScreen = () => {
   const [gamePhase, setGamePhase] = useState<GamePhase>("connecting");
   const [justEliminatedId, setJustEliminatedId] = useState<number | null>(null);
   const [winner, setWinner] = useState<Restaurant | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // ── Refs ─────────────────────────────────────────────────────────────────
   const socketRef = useRef<Socket | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const connectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shakeAnim  = useRef(new Animated.Value(0)).current;
+  const timerScale = useRef(new Animated.Value(1)).current;
+  // Always points to the latest allRestaurants so socket handlers (which close
+  // over the initial value) can still look up caption / popularItems.
+  const allRestaurantsRef = useRef(allRestaurants);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -67,32 +71,54 @@ const PickBanScreen = () => {
     Newsreader_600SemiBold,
   });
 
+  useEffect(() => { allRestaurantsRef.current = allRestaurants; }, [allRestaurants]);
+
   // ── Socket setup ─────────────────────────────────────────────────────────
   useEffect(() => {
+    setResumePath("/pickBan");
+
+    // If we haven't connected and received a round_start within 20s, show error
+    connectTimeoutRef.current = setTimeout(() => {
+      if (socketRef.current && !socketRef.current.connected) {
+        setConnectionError("Can't reach the server. Check your connection.");
+        setGamePhase("error");
+      }
+    }, 20_000);
+
     const socket = io(SERVER_URL, {
       transports: ["websocket"],
       forceNew: true,
+      timeout: 10_000,
     });
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("[pickBan] socket connected");
-      socket.emit("join_room", {
-        sessionId,
-        restaurants: allRestaurants,
-      });
+      socket.emit("join_room", { sessionId, restaurants: allRestaurants });
+    });
+
+    socket.on("room_info", ({ restaurants }: { restaurants: Restaurant[] }) => {
+      setAllRestaurants(prev => (prev.length > 0 ? prev : restaurants));
     });
 
     socket.on(
       "round_start",
       (data: {
-        round: number;
-        restaurants: Restaurant[];
-        eliminatedIds: number[];
-        timeLeft: number;
+        round:          number;
+        restaurants:    Restaurant[];
+        allRestaurants?: Restaurant[];
+        eliminatedIds:  number[];
+        timeLeft:       number;
       }) => {
+        // Connected and running — clear the connection timeout
+        if (connectTimeoutRef.current) {
+          clearTimeout(connectTimeoutRef.current);
+          connectTimeoutRef.current = null;
+        }
         setRound(data.round);
         setActiveRestaurants(data.restaurants);
+        if (data.allRestaurants?.length) {
+          setAllRestaurants(prev => (prev.length > 0 ? prev : data.allRestaurants!));
+        }
         setEliminatedIds(data.eliminatedIds);
         setVoteCounts({});
         setMyVoteId(null);
@@ -127,27 +153,70 @@ const PickBanScreen = () => {
 
     socket.on("game_over", (data: { winner: Restaurant }) => {
       stopLocalTimer();
-      setWinner(data.winner);
+      const localMatch = allRestaurantsRef.current.find(r => r.id === data.winner.id);
+      const fullWinner: Restaurant = localMatch
+        ? { ...data.winner, ...localMatch }
+        : data.winner;
+      setWinner(fullWinner);
       setGamePhase("game_over");
-      // Navigate to matched after a short celebration delay
       setTimeout(() => {
         router.replace({
           pathname: "/matched",
-          params: { restaurant: JSON.stringify(data.winner) },
+          params: { restaurant: JSON.stringify(fullWinner) },
         });
       }, 2000);
     });
 
-    socket.on("connect_error", (err) => {
-      console.error("[pickBan] socket error:", err.message);
+    socket.on("connect_error", () => {
+      if (connectTimeoutRef.current) {
+        clearTimeout(connectTimeoutRef.current);
+        connectTimeoutRef.current = null;
+      }
+      setConnectionError("Can't reach the server. Check your connection and try again.");
+      setGamePhase("error");
+    });
+
+    socket.on("error_event", ({ message }: { message: string }) => {
+      setConnectionError(message || "Something went wrong. Please go back and try again.");
+      setGamePhase("error");
     });
 
     return () => {
+      if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
       stopLocalTimer();
       socket.disconnect();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
+
+  // ── Shake animation — fires whenever a new elimination is confirmed ──────
+  useEffect(() => {
+    if (justEliminatedId === null) return;
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 16,  duration: 55,  useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+      Animated.timing(shakeAnim, { toValue: -16, duration: 55,  useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 10,  duration: 50,  useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 50,  useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 5,   duration: 40,  useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0,   duration: 40,  useNativeDriver: true }),
+    ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [justEliminatedId]);
+
+  // ── Timer pulse — kicks in for last 10 seconds ────────────────────────────
+  useEffect(() => {
+    if (timeLeft > 0 && timeLeft <= 10 && gamePhase === "active") {
+      timerScale.setValue(1);
+      Animated.sequence([
+        Animated.timing(timerScale, { toValue: 1.12, duration: 110, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+        Animated.timing(timerScale, { toValue: 1,    duration: 390, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
+      ]).start();
+    } else {
+      timerScale.setValue(1);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, gamePhase]);
 
   // ── Local countdown ──────────────────────────────────────────────────────
   const startLocalTimer = (seconds: number) => {
@@ -195,6 +264,26 @@ const PickBanScreen = () => {
 
   if (!fontsLoaded) return null;
 
+  if (gamePhase === "error") {
+    return (
+      <SafeAreaView style={[styles.screen, { justifyContent: "center", alignItems: "center", padding: 32 }]}>
+        <Feather name="wifi-off" size={48} color="#ba1a1a" style={{ marginBottom: 20 }} />
+        <Text style={{ fontFamily: "Newsreader_600SemiBold", fontSize: 26, color: "#1b1b1b", textAlign: "center", marginBottom: 12 }}>
+          Connection Failed
+        </Text>
+        <Text style={{ fontFamily: "Inter_400Regular", fontSize: 15, color: "#666", textAlign: "center", lineHeight: 22, marginBottom: 32 }}>
+          {connectionError ?? "Can't reach the server. Check your connection and try again."}
+        </Text>
+        <TouchableOpacity
+          style={{ backgroundColor: "#1b1b1b", paddingHorizontal: 32, paddingVertical: 16, borderRadius: 32 }}
+          onPress={() => router.back()}
+        >
+          <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: "#fff", letterSpacing: 1 }}>GO BACK</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
   // Merge all restaurants: show active + eliminated together for visual continuity
   const displayRestaurants = allRestaurants.length > 0 ? allRestaurants : activeRestaurants;
 
@@ -206,9 +295,9 @@ const PickBanScreen = () => {
           <Feather name="arrow-left" size={24} color="black" />
         </MyButton>
         <Text style={styles.appName}>Veto</Text>
-        <MyButton style={styles.sideButton} onClick={() => {}}>
-          <View style={styles.profileCircle}>
-            <Feather name="user" size={20} color="#5b5b5b" />
+        <MyButton style={styles.sideButton} onClick={() => router.push("/(tabs)")}>
+          <View style={styles.homeCircle}>
+            <Feather name="home" size={20} color="#5b5b5b" />
           </View>
         </MyButton>
       </View>
@@ -232,10 +321,10 @@ const PickBanScreen = () => {
               <Text style={[styles.timerText, { color: "#1b6b3a" }]}>ROUND {round} COMPLETE</Text>
             </View>
           ) : (
-            <View style={[styles.timerPill, timeLeft <= 10 && styles.timerPillUrgent]}>
+            <Animated.View style={[styles.timerPill, timeLeft <= 10 && styles.timerPillUrgent, { transform: [{ scale: timerScale }] }]}>
               <Feather name="clock" size={14} color="#93000a" />
               <Text style={styles.timerText}>{formatTime(timeLeft)} REMAINING</Text>
-            </View>
+            </Animated.View>
           )}
 
           <Text style={styles.title}>
@@ -250,7 +339,7 @@ const PickBanScreen = () => {
               ? "Taking you to your result…"
               : gamePhase === "round_end"
               ? `Round ${round} is over. Next round starting soon…`
-              : `Round ${round} of 4 — Cast your veto. The restaurant with the most votes will be eliminated.`}
+              : `Round ${round} of ${allRestaurants.length > 1 ? allRestaurants.length - 1 : "…"} — Cast your veto. The restaurant with the most votes will be eliminated.`}
           </Text>
         </View>
 
@@ -275,12 +364,13 @@ const PickBanScreen = () => {
             const tentativeStampTextStyle = styles.bannedText;
 
             return (
-              <View
+              <Animated.View
                 key={r.id}
                 style={[
                   styles.card,
                   isEliminated && styles.cardBanned,
                   isWinner && styles.cardWinner,
+                  isJustEliminated && { transform: [{ translateX: shakeAnim }] },
                 ]}
               >
                 {/* Full-card BANNED overlay: server-confirmed eliminations only */}
@@ -390,7 +480,7 @@ const PickBanScreen = () => {
                     </>
                   )}
                 </View>
-              </View>
+              </Animated.View>
             );
           })}
         </View>
@@ -424,7 +514,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     color: "#1b1b1b",
   },
-  profileCircle: {
+  homeCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,

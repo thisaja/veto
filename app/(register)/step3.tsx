@@ -11,9 +11,11 @@ import {
 } from "@expo-google-fonts/newsreader";
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { PresetAvatar, parsePresetKey } from "@/components/PresetAvatars";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
-import { Text, View } from "react-native";
+import { useState } from "react";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useUserDetailsContext } from "./_layout";
 const Step3Screen = () => {
@@ -28,10 +30,14 @@ const Step3Screen = () => {
   const { userDetails, setUserDetails } = useUserDetailsContext();
   const { setAuth } = useAuth();
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   const handleContinue = async () => {
+    setLoading(true);
     const formData = new FormData();
-    formData.append("user", JSON.stringify(userDetails));
+    // Strip the ImagePickerResult from the JSON payload — it's sent as a file below
+    const { ProfilePicture: _pic, ...rest } = userDetails ?? {};
+    formData.append("user", JSON.stringify(rest));
     if (userDetails?.ProfilePicture) {
       const image = {
         uri: userDetails.ProfilePicture.assets[0].uri,
@@ -56,18 +62,17 @@ const Step3Screen = () => {
       router.replace("/(tabs)");
     } catch (error) {
       if (error instanceof Error) console.log(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <SafeAreaView style={globalStyles.screen}>
-      <View
-        style={{
-          height: "100%",
-          width: "100%",
-          flexDirection: "column",
-          alignItems: "center",
-        }}
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, alignItems: "center" }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         {/* Header */}
         <View
@@ -111,17 +116,39 @@ const Step3Screen = () => {
             justifyContent: "center",
           }}
         >
-          <Image
-            style={{
-              width: "100%",
-              aspectRatio: 1.5,
-              borderWidth: 1,
-              borderColor: "black",
-              borderRadius: 16,
-            }}
-            source={require("../../assets/images/placeholder.png")}
-            contentFit="cover"
-          />
+          {parsePresetKey(userDetails?.PresetAvatar) !== null ? (
+            <View
+              style={{
+                width: "100%",
+                aspectRatio: 1.5,
+                borderWidth: 1,
+                borderColor: "black",
+                borderRadius: 16,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#f0eeea",
+                overflow: "hidden",
+              }}
+            >
+              <PresetAvatar index={parsePresetKey(userDetails!.PresetAvatar)!} size={100} />
+            </View>
+          ) : (
+            <Image
+              style={{
+                width: "100%",
+                aspectRatio: 1.5,
+                borderWidth: 1,
+                borderColor: "black",
+                borderRadius: 16,
+              }}
+              source={
+                userDetails?.ProfilePicture?.assets?.[0]?.uri
+                  ? { uri: userDetails.ProfilePicture.assets[0].uri }
+                  : require("../../assets/images/placeholder.png")
+              }
+              contentFit="cover"
+            />
+          )}
           <View style={{ alignItems: "center", gap: 4 }}>
             <Text
               style={{
@@ -153,11 +180,17 @@ const Step3Screen = () => {
           />
         </View>
 
-        <MyButton onClick={handleContinue} style={{ height: 48, width: "100%" }}>
-          <Text style={{ color: "white" }}>CONTINUE</Text>
-          <Feather name="arrow-right" size={16} color="white" />
+        <MyButton onClick={handleContinue} style={{ height: 48, width: "100%", marginBottom: 16 }} disabled={loading}>
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Text style={{ color: "white" }}>CONTINUE</Text>
+              <Feather name="arrow-right" size={16} color="white" />
+            </>
+          )}
         </MyButton>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };

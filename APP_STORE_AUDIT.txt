@@ -1,0 +1,12 @@
+Avoid rate limit, use projects
+
+2. SETUP EMAIL DOMAIN AND PASSWORD STUFF - "Forgot Password" must work, resend api - otp code, need to sign up and setup env, need own domain for resend
+
+
+3. SETUP AUTHORIZATION
+AuthContext.tsx (auth system)
+  - No persistence: pure useState — every app restart logs the user out
+  - No SecureStore / AsyncStorage: JWT token is lost on restart
+  - No token refresh: JWT expires but there is no refresh flow
+    13. Auth-gated routing — nothing currently stops a logged-out user from
+    deep-linking into /pickBan or other protected screens

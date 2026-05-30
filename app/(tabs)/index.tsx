@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { useSession } from "@/context/SessionContext";
 import { Inter_400Regular, Inter_600SemiBold, useFonts } from "@expo-google-fonts/inter";
 import {
   Newsreader_400Regular_Italic,
@@ -9,6 +10,7 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -44,10 +46,12 @@ function relativeTime(iso: string): string {
 
 export default function HomeScreen() {
   const router   = useRouter();
-  const { userId, loginAsGuest } = useAuth();
+  const { userId, isGuest, loginAsGuest } = useAuth();
+  const { sessionId, resumePath } = useSession();
 
-  const [recentGroups,  setRecentGroups]  = useState<RecentGroup[]>([]);
-  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [recentGroups,    setRecentGroups]    = useState<RecentGroup[]>([]);
+  const [loadingGroups,   setLoadingGroups]   = useState(false);
+  const [historyError,    setHistoryError]    = useState(false);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -59,12 +63,17 @@ export default function HomeScreen() {
   const fetchHistory = useCallback(async () => {
     if (!userId) return;
     setLoadingGroups(true);
+    setHistoryError(false);
     try {
       const res  = await fetch(`${API_BASE}/session/history/${userId}`);
       const json = await res.json();
       if (json.success) setRecentGroups(json.data ?? []);
-    } catch {}
-    finally { setLoadingGroups(false); }
+      else setHistoryError(true);
+    } catch {
+      setHistoryError(true);
+    } finally {
+      setLoadingGroups(false);
+    }
   }, [userId]);
 
   useEffect(() => { fetchHistory(); }, [fetchHistory]);
@@ -72,8 +81,36 @@ export default function HomeScreen() {
   if (!fontsLoaded) return null;
 
   const handleHostSession = () => {
+    if (sessionId) {
+      Alert.alert(
+        "Session in Progress",
+        "You already have an active session. Resume it or finish it before starting a new one.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
     if (!userId) loginAsGuest();
     router.push("/createSession");
+  };
+
+  const handleJoinLobby = () => {
+    if (sessionId) {
+      Alert.alert(
+        "Session in Progress",
+        "You already have an active session. Resume it or finish it before joining another.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    router.push("/joinLobby");
+  };
+
+  const handleResumeSession = () => {
+    if (!resumePath) return;
+    router.push({
+      pathname: resumePath as any,
+      params: { sessionId: sessionId! },
+    });
   };
 
   const handleGroupPress = (g: RecentGroup) => {
@@ -103,22 +140,44 @@ export default function HomeScreen() {
         <Text style={styles.tagline}>Group dining,{"\n"}decided together.</Text>
 
         {/* ════════════════════════════
-            HOST A SESSION CARD
+            ACTIVE SESSION BANNER
         ════════════════════════════ */}
-        <View style={styles.card}>
-          <View style={styles.cardTop}>
-            <View style={styles.cardTexts}>
-              <Text style={styles.cardHeading}>Host a Session</Text>
-              <Text style={styles.cardDesc}>
-                Lead the way. Choose a location, set your filters, and invite your circle.
-              </Text>
+        {sessionId && resumePath && (
+          <TouchableOpacity
+            style={styles.resumeBanner}
+            activeOpacity={0.8}
+            onPress={handleResumeSession}
+          >
+            <View style={styles.resumeBannerLeft}>
+              <Feather name="activity" size={16} color="#c8920a" />
+              <Text style={styles.resumeBannerText}>Session in progress</Text>
             </View>
-            <MaterialIcons name="restaurant" size={56} color="#d4cfc8" style={styles.decorIcon} />
-          </View>
-          <TouchableOpacity style={styles.cardBtn} activeOpacity={0.8} onPress={handleHostSession}>
-            <Text style={styles.cardBtnText}>CREATE SESSION</Text>
+            <View style={styles.resumeButton}>
+              <Text style={styles.resumeButtonText}>RESUME</Text>
+              <Feather name="arrow-right" size={14} color="#5a3800" />
+            </View>
           </TouchableOpacity>
-        </View>
+        )}
+
+        {/* ════════════════════════════
+            HOST A SESSION CARD (authenticated only)
+        ════════════════════════════ */}
+        {!isGuest && (
+          <View style={styles.card}>
+            <View style={styles.cardTop}>
+              <View style={styles.cardTexts}>
+                <Text style={styles.cardHeading}>Host a Session</Text>
+                <Text style={styles.cardDesc}>
+                  Lead the way. Choose a location, set your filters, and invite your circle.
+                </Text>
+              </View>
+              <MaterialIcons name="restaurant" size={56} color="#d4cfc8" style={styles.decorIcon} />
+            </View>
+            <TouchableOpacity style={styles.cardBtn} activeOpacity={0.8} onPress={handleHostSession}>
+              <Text style={styles.cardBtnText}>CREATE SESSION</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ════════════════════════════
             JOIN A LOBBY CARD
@@ -133,14 +192,32 @@ export default function HomeScreen() {
             </View>
             <Feather name="users" size={52} color="#d4cfc8" style={styles.decorIcon} />
           </View>
-          <TouchableOpacity style={styles.cardBtn} activeOpacity={0.8} onPress={() => router.push("/joinLobby")}>
+          <TouchableOpacity style={styles.cardBtn} activeOpacity={0.8} onPress={handleJoinLobby}>
             <Text style={styles.cardBtnText}>SCAN QR OR ENTER CODE</Text>
           </TouchableOpacity>
         </View>
 
         {/* ════════════════════════════
-            RECENT GROUPS
+            GUEST UPSELL / RECENT GROUPS
         ════════════════════════════ */}
+        {isGuest ? (
+          <View style={styles.guestUpsell}>
+            <Text style={styles.guestUpsellTitle}>Want to host your own session?</Text>
+            <Text style={styles.guestUpsellSub}>
+              Create a free account to host sessions, invite friends, and track your dining history.
+            </Text>
+            <TouchableOpacity
+              style={styles.guestUpsellBtn}
+              onPress={() => router.push("/(register)")}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.guestUpsellBtnText}>CREATE ACCOUNT</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push("/login")} activeOpacity={0.7}>
+              <Text style={styles.guestLoginLink}>Already have an account? Log in</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
         <View style={styles.recentSection}>
           <Text style={styles.sectionLabel}>RECENT GROUPS</Text>
 
@@ -148,6 +225,12 @@ export default function HomeScreen() {
             <Text style={styles.emptyText}>Sign in to see your past sessions here.</Text>
           ) : loadingGroups ? (
             <ActivityIndicator size="small" color="#999" style={{ marginTop: 12 }} />
+          ) : historyError ? (
+            <TouchableOpacity onPress={fetchHistory} style={{ marginTop: 8, alignItems: "flex-start" }}>
+              <Text style={[styles.emptyText, { color: "#ba1a1a" }]}>
+                Couldn't load sessions. Tap to retry.
+              </Text>
+            </TouchableOpacity>
           ) : recentGroups.length === 0 ? (
             <Text style={styles.emptyText}>Your past sessions will appear here.</Text>
           ) : (
@@ -184,6 +267,7 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -207,6 +291,47 @@ const styles = StyleSheet.create({
     color: "#1b1b1b",
     letterSpacing: -0.5,
     marginBottom: 32,
+  },
+
+  // ── Active session banner ──
+  resumeBanner: {
+    backgroundColor: "#fdf3dc",
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    marginBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "#f0d98a",
+  },
+  resumeBannerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  resumeBannerText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: "#5a3800",
+  },
+  resumeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#fff",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#c8920a",
+  },
+  resumeButtonText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+    letterSpacing: 1,
+    color: "#5a3800",
   },
 
   // ── Cards ──
@@ -254,6 +379,51 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 1.5,
     color: "#fff",
+  },
+
+  // ── Guest upsell ──
+  guestUpsell: {
+    marginTop: 10,
+    backgroundColor: "#f0eeea",
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+    gap: 10,
+  },
+  guestUpsellTitle: {
+    fontFamily: "Newsreader_600SemiBold",
+    fontSize: 20,
+    color: "#1b1b1b",
+    textAlign: "center",
+    lineHeight: 26,
+  },
+  guestUpsellSub: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 19,
+  },
+  guestUpsellBtn: {
+    backgroundColor: "#1b1b1b",
+    borderRadius: 32,
+    height: 52,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+  },
+  guestUpsellBtnText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+    letterSpacing: 1.5,
+    color: "#fff",
+  },
+  guestLoginLink: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: "#888",
+    textDecorationLine: "underline",
   },
 
   // ── Recent groups ──

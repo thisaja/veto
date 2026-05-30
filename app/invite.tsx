@@ -1,3 +1,4 @@
+import Avatar, { buildAvatarUrl } from "@/components/Avatar";
 import MyButton from "@/components/button";
 import { globalStyles } from "@/constants/global";
 import { useAuth } from "@/context/AuthContext";
@@ -16,7 +17,6 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
-  Image,
   Modal,
   ScrollView,
   Share,
@@ -44,14 +44,6 @@ type Friend = {
   profilePicture: string | null;
 };
 
-function avatarInitials(first: string, last: string) {
-  return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase();
-}
-const AVATAR_COLORS = ["#e4e2dd", "#ede8f0", "#e8f0ea", "#f0e8e8", "#e8ecf0"];
-function avatarColor(id: string) {
-  const sum = id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  return AVATAR_COLORS[sum % AVATAR_COLORS.length];
-}
 
 const InviteScreen = () => {
   const router = useRouter();
@@ -65,12 +57,41 @@ const InviteScreen = () => {
   const isGuestMode = paramIsGuest === "true";
   const shortCode   = sessionId?.split("-")[0].toUpperCase() ?? "";
 
+  // ── Resolve the display alias before connecting the socket ──────────────
+  // diningAlias may be null if auth state is stale — fall back to a profile fetch.
+  const [resolvedAlias, setResolvedAlias] = useState<string | null>(
+    diningAlias ?? (isGuestMode ? "Guest" : null)
+  );
+
+  useEffect(() => {
+    if (resolvedAlias) return;             // already resolved
+    if (isGuestMode) { setResolvedAlias("Guest"); return; }
+    if (!userId)     { setResolvedAlias("Host");  return; }
+
+    // Auth state missing diningAlias — fetch from profile as fallback
+    fetch(`${API_BASE}/api/profile/${userId}`)
+      .then(r => r.json())
+      .then(json => {
+        setResolvedAlias(
+          json.success && json.data?.diningAlias
+            ? json.data.diningAlias
+            : "Host"
+        );
+      })
+      .catch(() => setResolvedAlias("Host"));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── State ─────────────────────────────────────────────────────────────────
   const [members,         setMembers]         = useState<LobbyMember[]>([]);
   const [status,          setStatus]          = useState<"waiting" | "in_questions" | "generating" | "done">("waiting");
   const [socketConnected, setSocketConnected] = useState(false);
   const [starting,        setStarting]        = useState(false);
+  const [navigating,      setNavigating]      = useState(false);
   const [qrTimedOut,      setQrTimedOut]      = useState(false);
+  // Host migration: tracks whether THIS device is the current host
+  const [isCurrentHost,   setIsCurrentHost]   = useState(!isGuestMode);
+  const [hostBanner,      setHostBanner]       = useState<string | null>(null);
 
   // Friends modal
   const [friends,        setFriends]        = useState<Friend[]>([]);
@@ -104,18 +125,18 @@ const InviteScreen = () => {
   const showToast = (msg: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToastMsg(msg);
-    toastAnim.setValue(-56);
+    toastAnim.setValue(80);
     Animated.sequence([
-      Animated.timing(toastAnim, { toValue: 0,   duration: 240, useNativeDriver: true }),
-      Animated.delay(1800),
-      Animated.timing(toastAnim, { toValue: -56, duration: 240, useNativeDriver: true }),
+      Animated.spring(toastAnim, { toValue: 0, useNativeDriver: true, bounciness: 6 }),
+      Animated.delay(2000),
+      Animated.timing(toastAnim, { toValue: 80, duration: 220, useNativeDriver: true }),
     ]).start();
-    toastTimer.current = setTimeout(() => setToastMsg(""), 2300);
+    toastTimer.current = setTimeout(() => setToastMsg(""), 2500);
   };
 
   // ── Guest pulse animation ─────────────────────────────────────────────────
   useEffect(() => {
-    if (!isGuestMode || !socketConnected) return;
+    if (isCurrentHost || !socketConnected) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.4, duration: 800, useNativeDriver: true }),
@@ -124,14 +145,29 @@ const InviteScreen = () => {
     );
     loop.start();
     return () => loop.stop();
-  }, [isGuestMode, socketConnected]);
+  }, [isCurrentHost, socketConnected]);
 
   // ── QR timeout — if sessionId still null after 8s show retry ─────────────
   useEffect(() => {
-    if (isGuestMode || sessionId) return;
+    if (!isCurrentHost || sessionId) return;
     const t = setTimeout(() => setQrTimedOut(true), 8000);
     return () => clearTimeout(t);
-  }, [sessionId, isGuestMode]);
+  }, [sessionId, isCurrentHost]);
+
+  // ── Trigger Gemini question generation as soon as host has a sessionId ────
+  // This matches the original flow: invite screen fires /api/gemini/question
+  // (which runs Gemini against the session's places data and stores the questions
+  // in the DB). The questionnaire then retrieves them via /api/gemini/getQA.
+  useEffect(() => {
+    if (!isCurrentHost || !sessionId) return;
+    const url = `${API_BASE}/api/gemini/question?sessionId=${sessionId}`;
+    console.log("[invite] triggering question generation →", url);
+    fetch(url, { method: "GET", headers: { "Content-Type": "application/json" } })
+      .then(r => r.json())
+      .then(json => console.log("[invite] question generation response:", JSON.stringify(json)))
+      .catch(err => console.error("[invite] question generation failed:", err));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, isCurrentHost]);
 
   // ── REST seed ─────────────────────────────────────────────────────────────
   const refreshMembers = useCallback(async () => {
@@ -151,7 +187,7 @@ const InviteScreen = () => {
 
   // ── Socket ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || !resolvedAlias) return;   // wait until alias is ready
     refreshMembers();
 
     const socket = io(`${SERVER_URL}/lobby`, {
@@ -167,7 +203,7 @@ const InviteScreen = () => {
       setSocketConnected(true);
       socket.emit("join_lobby", {
         sessionId,
-        alias:  diningAlias ?? (isGuestMode ? "Guest" : "Host"),
+        alias:  resolvedAlias,
         isHost: !isGuestMode,
         userId:  userId  ?? undefined,
         guestId: guestId ?? undefined,
@@ -183,13 +219,48 @@ const InviteScreen = () => {
     });
 
     socket.on("questions_started", () => {
-      router.replace({ pathname: "/questionnaire", params: { sessionId: sessionId ?? "" } });
+      setNavigating(true);
+      router.replace({
+        pathname: "/questionnaire",
+        params: { sessionId: sessionId ?? "", isHost: isCurrentHost ? "true" : "false" },
+      });
     });
 
-    socket.on("connect_error", (err) => console.error("[invite] socket error:", err.message));
+    socket.on("host_disconnected", ({ timeoutSeconds }: { timeoutSeconds: number }) => {
+      setHostBanner(`Host disconnected — finding a new host in ${timeoutSeconds}s…`);
+    });
+
+    socket.on("host_reconnected", ({ alias }: { alias: string }) => {
+      setHostBanner(`${alias} (host) reconnected`);
+      setTimeout(() => setHostBanner(null), 3000);
+    });
+
+    socket.on("host_migrated", ({ newHostAlias }: { newHostAlias: string }) => {
+      setHostBanner(null);
+      const myAlias = resolvedAlias ?? (isGuestMode ? "Guest" : "Host");
+      if (newHostAlias === myAlias) {
+        setIsCurrentHost(true);
+        showToast("You are now the host!");
+      } else {
+        showToast(`${newHostAlias} is now the host`);
+      }
+    });
+
+    socket.on("connect_error", () => {
+      showToast("Can't reach the server. Check your connection.");
+      setSocketConnected(false);
+    });
+
+    socket.on("disconnect", (reason) => {
+      if (reason !== "io client disconnect") {
+        setSocketConnected(false);
+        showToast("Connection lost. Trying to reconnect…");
+      }
+    });
+
     return () => { socket.disconnect(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  }, [sessionId, resolvedAlias]);
 
   // ── Friends ───────────────────────────────────────────────────────────────
   const fetchFriends = useCallback(async () => {
@@ -199,15 +270,17 @@ const InviteScreen = () => {
       const res  = await fetch(`${API_BASE}/api/friends/${userId}`);
       const json = await res.json();
       if (json.success) setFriends(json.data);
-    } catch {}
-    finally { setLoadingFriends(false); }
+      else showToast("Couldn't load friends list.");
+    } catch {
+      showToast("Couldn't load friends list. Check your connection.");
+    } finally { setLoadingFriends(false); }
   }, [userId]);
 
   // ── Share helpers ─────────────────────────────────────────────────────────
   const handleCopyLink = async () => {
     if (!deepLink) return;
     await Clipboard.setStringAsync(deepLink);
-    showToast("✓ Invite link copied to clipboard");
+    showToast("Invite link copied — paste it to your friends!");
   };
 
   const handleShare = async () => {
@@ -218,15 +291,33 @@ const InviteScreen = () => {
   };
 
   const handleShareWithFriend = async (friend: Friend) => {
-    const msg = `Hey ${friend.firstName}, join my Veto session!\n\n📱 ${deepLink ?? ""}\n\nNo app? Get it: ${APP_STORE_URL}`;
-    try {
-      await Share.share({ message: msg, title: "Join my Veto session" });
-    } catch {}
+    if (sessionId && friend.userId) {
+      try {
+        await fetch(`${API_BASE}/session/invite`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            hostAlias: resolvedAlias ?? "Host",
+            friendUserId: friend.userId,
+          }),
+        });
+        showToast(`Invite sent to ${friend.firstName}!`);
+      } catch {
+        showToast("Couldn't send invite. Check your connection.");
+      }
+    }
+    setFriendsModal(false);
   };
 
   const handleStartQuestions = () => {
-    if (!socketRef.current || !sessionId) return;
+    if (!socketRef.current || !sessionId || !isCurrentHost) return;
+    if (!socketConnected) {
+      showToast("Not connected to server. Please wait or check your connection.");
+      return;
+    }
     setStarting(true);
+    setNavigating(true);
     socketRef.current.emit("start_questions", { sessionId });
   };
 
@@ -244,7 +335,7 @@ const InviteScreen = () => {
       ) : members.length === 0 ? (
         <Text style={styles.membersEmpty}>No one here yet…</Text>
       ) : (
-        <View style={styles.membersList}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.membersList}>
           {members.map((m, i) => (
             <View key={i} style={styles.memberRow}>
               <View style={[styles.memberDot, m.isHost && styles.memberDotHost]} />
@@ -263,7 +354,7 @@ const InviteScreen = () => {
               )}
             </View>
           ))}
-        </View>
+        </ScrollView>
       )}
     </View>
   );
@@ -271,9 +362,10 @@ const InviteScreen = () => {
   return (
     <SafeAreaView style={globalStyles.screen}>
 
-      {/* ── Toast banner ── */}
+      {/* ── Toast pill ── */}
       {toastMsg !== "" && (
         <Animated.View style={[styles.toast, { transform: [{ translateY: toastAnim }] }]}>
+          <Feather name="check-circle" size={16} color="#fff" />
           <Text style={styles.toastText}>{toastMsg}</Text>
         </Animated.View>
       )}
@@ -284,21 +376,29 @@ const InviteScreen = () => {
           <Feather name="x" size={22} color="black" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {isGuestMode ? "JOINING SESSION" : "INVITE"}
+          {isCurrentHost ? "INVITE" : "JOINING SESSION"}
         </Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <View style={styles.content}>
+
+        {/* ── Host-disconnected banner ── */}
+        {hostBanner && (
+          <View style={styles.hostBanner}>
+            <Feather name="wifi-off" size={14} color="#7a4800" />
+            <Text style={styles.hostBannerText}>{hostBanner}</Text>
+          </View>
+        )}
 
         {/* ════════════════ HOST VIEW ════════════════ */}
-        {!isGuestMode && (
+        {isCurrentHost && (
           <>
             {/* QR code card */}
             <View style={styles.qrCard}>
               <View style={styles.qrWrapper}>
                 {sessionId && deepLink ? (
-                  <QRCode value={deepLink} size={180} color="#1b1b1b" backgroundColor="#fff" />
+                  <QRCode value={deepLink} size={150} color="#1b1b1b" backgroundColor="#fff" />
                 ) : qrTimedOut ? (
                   <View style={styles.qrError}>
                     <Feather name="alert-circle" size={32} color="#e88" />
@@ -373,7 +473,7 @@ const InviteScreen = () => {
         )}
 
         {/* ════════════════ GUEST VIEW ════════════════ */}
-        {isGuestMode && (
+        {!isCurrentHost && (
           <>
             {/* You're in card */}
             <View style={styles.guestCard}>
@@ -407,10 +507,10 @@ const InviteScreen = () => {
           </>
         )}
 
-      </ScrollView>
+      </View>
 
       {/* ── Host footer ── */}
-      {!isGuestMode && (
+      {isCurrentHost && (
         <View style={styles.footer}>
           <MyButton
             onClick={handleStartQuestions}
@@ -478,13 +578,13 @@ const InviteScreen = () => {
                     activeOpacity={0.75}
                     onPress={() => { handleShareWithFriend(friend); setFriendsModal(false); }}
                   >
-                    <View style={[styles.friendAvatar, { backgroundColor: avatarColor(friend.userId) }]}>
-                      {friend.profilePicture ? (
-                        <Image source={{ uri: `${API_BASE}/uploads/${friend.profilePicture}` }} style={styles.friendAvatarImg} />
-                      ) : (
-                        <Text style={styles.friendInitials}>{avatarInitials(friend.firstName, friend.lastName)}</Text>
-                      )}
-                    </View>
+                    <Avatar
+                      firstName={friend.firstName}
+                      lastName={friend.lastName}
+                      photoUrl={buildAvatarUrl(friend.profilePicture, API_BASE)}
+                      colorSeed={friend.userId}
+                      size={44}
+                    />
                     <View style={styles.friendInfo}>
                       <Text style={styles.friendName}>{friend.firstName} {friend.lastName}</Text>
                       <Text style={styles.friendAlias}>@{friend.diningAlias}</Text>
@@ -500,27 +600,78 @@ const InviteScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* ── Loading mask — shown for all users when questions are starting ── */}
+      {navigating && (
+        <View style={styles.loadingMask}>
+          <ActivityIndicator size="large" color="#1b1b1b" />
+          <Text style={styles.loadingMaskText}>Starting…</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  // ── Loading mask ──
+  loadingMask: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+    zIndex: 999,
+  },
+  loadingMaskText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    color: "#888",
+    letterSpacing: 0.5,
+  },
+
   // ── Toast ──
   toast: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
+    bottom: 36,
+    alignSelf: "center",
     zIndex: 100,
-    backgroundColor: "#2d6a4f",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    flexDirection: "row",
     alignItems: "center",
+    gap: 8,
+    backgroundColor: "#1b1b1b",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 32,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
   },
   toastText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
     color: "#fff",
+  },
+
+  // ── Host disconnected banner ──
+  hostBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#fff3cd",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#ffe08a",
+  },
+  hostBannerText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: "#7a4800",
+    flex: 1,
   },
 
   // ── Header ──
@@ -539,27 +690,27 @@ const styles = StyleSheet.create({
     color: "#4C4546",
   },
 
-  scroll: { paddingBottom: 16 },
+  content: { flex: 1 },
 
   // ── QR card ──
   qrCard: {
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     backgroundColor: "#fff",
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#e8e6e1",
-    paddingVertical: 24,
-    marginBottom: 16,
+    paddingVertical: 16,
+    marginBottom: 12,
   },
   qrWrapper: {
-    padding: 12,
+    padding: 8,
     backgroundColor: "#fff",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#f0eeea",
-    minHeight: 204,
-    minWidth: 204,
+    minHeight: 166,
+    minWidth: 166,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -571,31 +722,31 @@ const styles = StyleSheet.create({
   sessionCode: { fontFamily: "Inter_600SemiBold", fontSize: 18, color: "#1b1b1b", letterSpacing: 4 },
 
   // ── Invite actions ──
-  actionsSection: { marginBottom: 20 },
-  sectionLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 2, color: "#999", marginBottom: 10 },
+  actionsSection: { marginBottom: 12 },
+  sectionLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 2, color: "#999", marginBottom: 8 },
   inviteRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     backgroundColor: "#fff",
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#e8e6e1",
-    marginBottom: 8,
-    gap: 14,
+    marginBottom: 6,
+    gap: 12,
   },
   inviteRowDisabled: { opacity: 0.4 },
   inviteRowIcon: {
-    width: 36, height: 36, borderRadius: 10,
+    width: 32, height: 32, borderRadius: 9,
     backgroundColor: "#f0eeea", alignItems: "center", justifyContent: "center",
   },
-  inviteRowText: { flex: 1, gap: 2 },
-  inviteRowLabel: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#1b1b1b" },
-  inviteRowSub: { fontFamily: "Inter_400Regular", fontSize: 12, color: "#999" },
+  inviteRowText: { flex: 1, gap: 1 },
+  inviteRowLabel: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: "#1b1b1b" },
+  inviteRowSub: { fontFamily: "Inter_400Regular", fontSize: 11, color: "#999" },
 
   // ── Member list ──
-  membersSection: { marginBottom: 16 },
+  membersSection: { flex: 1, marginBottom: 8 },
   connectingRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
   connectingText: { fontFamily: "Inter_400Regular", fontSize: 14, color: "#bbb" },
   membersEmpty: { fontFamily: "Inter_400Regular", fontSize: 14, color: "#bbb" },
@@ -692,12 +843,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff", borderRadius: 16,
     borderWidth: 1, borderColor: "#e8e6e1", gap: 12,
   },
-  friendAvatar: {
-    width: 44, height: 44, borderRadius: 22,
-    alignItems: "center", justifyContent: "center", overflow: "hidden",
-  },
-  friendAvatarImg: { width: 44, height: 44, borderRadius: 22 },
-  friendInitials: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: "#1b1b1b" },
   friendInfo: { flex: 1, gap: 2 },
   friendName: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#1b1b1b" },
   friendAlias: { fontFamily: "Inter_400Regular", fontSize: 13, color: "#888" },

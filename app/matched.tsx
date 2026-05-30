@@ -1,4 +1,5 @@
 import MyButton from "@/components/button";
+import { useSession } from "@/context/SessionContext";
 import { Inter_400Regular, Inter_600SemiBold, useFonts } from "@expo-google-fonts/inter";
 import {
   Newsreader_400Regular,
@@ -13,6 +14,7 @@ import {
   Image,
   Linking,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -36,6 +38,7 @@ type Restaurant = {
 
 const MatchScreen = () => {
   const router = useRouter();
+  const { clearSession } = useSession();
   const { restaurant: restaurantParam } = useLocalSearchParams<{ restaurant: string }>();
   const [addressCopied, setAddressCopied] = useState(false);
 
@@ -113,22 +116,26 @@ const MatchScreen = () => {
   const chips: string[] = [
     ...(restaurant?.priceRange ? [restaurant.priceRange] : []),
     ...(restaurant?.label ? [restaurant.label] : []),
-    ...(restaurant?.popularItems?.slice(0, 2) ?? []),
   ];
 
   return (
     <SafeAreaView style={styles.screen}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => {
+            clearSession();
+            router.replace("/(tabs)");
+          }}
+        >
           <Feather name="x" size={22} color="#1b1b1b" />
         </TouchableOpacity>
 
         <Text style={styles.appName}>Veto</Text>
 
-        <TouchableOpacity style={styles.iconButton}>
-          <Feather name="share" size={20} color="#1b1b1b" />
-        </TouchableOpacity>
+        {/* Spacer keeps title centred */}
+        <View style={styles.iconButton} />
       </View>
 
       {/* ── Verdict heading ── */}
@@ -137,79 +144,83 @@ const MatchScreen = () => {
         <Text style={styles.restaurantName}>{restaurant?.header ?? "—"}</Text>
       </View>
 
-      {/* ── Restaurant card ── */}
-      <View style={styles.card}>
-        {/* Hero image */}
-        <View style={styles.imageBox}>
-          {heroImage ? (
-            <Image style={styles.cardImage} source={{ uri: heroImage }} />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Feather name="image" size={40} color="#ccc" />
-            </View>
-          )}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* ── Restaurant card ── */}
+        <View style={styles.card}>
+          {/* Hero image */}
+          <View style={styles.imageBox}>
+            {heroImage ? (
+              <Image style={styles.cardImage} source={{ uri: heroImage }} />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Feather name="image" size={40} color="#ccc" />
+              </View>
+            )}
 
-          {/* Rating badge — top right of image */}
-          {restaurant?.rating ? (
-            <View style={styles.ratingBadge}>
-              <Feather name="star" size={11} color="#8B5A83" />
-              <Text style={styles.ratingText}>{restaurant.rating}</Text>
-            </View>
-          ) : null}
+            {/* Rating badge */}
+            {restaurant?.rating ? (
+              <View style={styles.ratingBadge}>
+                <Feather name="star" size={11} color="#8B5A83" />
+                <Text style={styles.ratingText}>{restaurant.rating}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Card info */}
+          <View style={styles.cardInfo}>
+            {/* Cuisine label */}
+            <Text style={styles.cuisineText}>{restaurant?.label ?? ""}</Text>
+
+            {/* Location row — tap copies address */}
+            <TouchableOpacity
+              style={styles.locationRow}
+              onPress={handleCopyAddress}
+              activeOpacity={0.75}
+            >
+              <Feather name="map-pin" size={14} color="#888" />
+              <Text style={styles.locationText} numberOfLines={2}>
+                {addressCopied
+                  ? "Copied to clipboard!"
+                  : restaurant?.address
+                    ? restaurant.address
+                    : `${restaurant?.header ?? "Restaurant"} — tap to copy`}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Price + label chips */}
+            {chips.length > 0 && (
+              <View style={styles.chipsRow}>
+                {chips.map((chip, idx) => (
+                  <View key={idx} style={styles.chip}>
+                    <Text style={styles.chipText}>{chip}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
 
-        {/* Card info */}
-        <View style={styles.cardInfo}>
-          {/* Cuisine line */}
-          <Text style={styles.cuisineText}>
-            {restaurant?.label ?? ""}
-          </Text>
+        {/* ── Actions ── */}
+        <View style={styles.actionsSection}>
+          <MyButton onClick={handleDirections} style={styles.directionsButton}>
+            <Feather name="navigation" size={16} color="white" />
+            <Text style={styles.directionsButtonText}>GET DIRECTIONS</Text>
+          </MyButton>
 
-          {/* Location row — tap copies address to clipboard */}
-          <TouchableOpacity
-            style={styles.locationRow}
-            onPress={handleCopyAddress}
-            activeOpacity={0.75}
-          >
-            <Feather name="map-pin" size={14} color="#888" />
-            <Text style={styles.locationText} numberOfLines={2}>
-              {addressCopied
-                ? "Copied to clipboard!"
-                : restaurant?.address
-                ? restaurant.address
-                : `${restaurant?.header ?? "Restaurant"} — tap to copy`}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Chips */}
-          {chips.length > 0 ? (
-            <View style={styles.chipsRow}>
-              {chips.map((chip, idx) => (
-                <View key={idx} style={styles.chip}>
-                  <Text style={styles.chipText}>{chip}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
+          <View style={styles.secondaryRow}>
+            <TouchableOpacity
+              style={styles.reserveButton}
+              onPress={handleReserve}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.reserveButtonText}>RESERVE A TABLE</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.callButton} onPress={handleCall} activeOpacity={0.8}>
+              <Feather name="phone" size={16} color="#1b1b1b" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-
-      {/* ── Actions ── */}
-      <View style={styles.actionsSection}>
-        <MyButton onClick={handleDirections} style={styles.directionsButton}>
-          <Feather name="navigation" size={16} color="white" />
-          <Text style={styles.directionsButtonText}>GET DIRECTIONS</Text>
-        </MyButton>
-
-        <View style={styles.secondaryRow}>
-          <TouchableOpacity style={styles.reserveButton} onPress={handleReserve} activeOpacity={0.8}>
-            <Text style={styles.reserveButtonText}>RESERVE A TABLE</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.callButton} onPress={handleCall} activeOpacity={0.8}>
-            <Feather name="phone" size={16} color="#1b1b1b" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -315,11 +326,15 @@ const styles = StyleSheet.create({
     color: "#1b1b1b",
   },
 
+  scrollContent: {
+    paddingBottom: 32,
+  },
+
   // Card info block
   cardInfo: {
     paddingHorizontal: 18,
     paddingTop: 14,
-    paddingBottom: 16,
+    paddingBottom: 20,
     gap: 10,
   },
   cuisineText: {
@@ -356,6 +371,44 @@ const styles = StyleSheet.create({
   chipText: {
     fontFamily: "Inter_400Regular",
     fontSize: 13,
+    color: "#1b1b1b",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#f0eeea",
+    marginVertical: 4,
+  },
+  captionText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
+    color: "#555",
+    lineHeight: 22,
+  },
+  popularSection: {
+    gap: 8,
+    marginTop: 4,
+  },
+  popularHeading: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+    letterSpacing: 2,
+    color: "#999",
+    marginBottom: 2,
+  },
+  popularRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  popularDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#8B5A83",
+  },
+  popularItem: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
     color: "#1b1b1b",
   },
 

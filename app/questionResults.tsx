@@ -12,6 +12,7 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
   Image,
@@ -25,12 +26,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { io, Socket } from "socket.io-client";
 
 const { width, height } = Dimensions.get("window");
 
 function getSessionLabel() {
   const h = new Date().getHours();
-  if (h >= 5  && h < 11) return "WEEKEND BRUNCH";
+  if (h >= 5 && h < 11) return "WEEKEND BRUNCH";
   if (h >= 11 && h < 14) return "LUNCH OUTING";
   if (h >= 14 && h < 17) return "AFTERNOON BITE";
   if (h >= 17 && h < 20) return "DINNER TONIGHT";
@@ -69,7 +71,6 @@ type Restaurant = {
   priceRange?: string;
   rating?: string;
   caption: string;
-  popularItems?: string[];
   address?: string;
   latitude?: number;
   longitude?: number;
@@ -111,19 +112,29 @@ const ResultScreen = () => {
     restaurants: restaurantsParam,
     answers: answersParam,
     sessionId: paramSessionId,
+    isHost: isHostParam,
   } = useLocalSearchParams<{
     restaurants?: string;
     answers?: string;
     sessionId?: string;
+    isHost?: string;
   }>();
 
   const sessionId = ctxSessionId ?? paramSessionId ?? "";
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Restaurant | null>(null);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const galleryRef = useRef<ScrollView>(null);
+
+  // Ready tracking
+  const [isReady, setIsReady] = useState(false);
+  const [readyCount, setReadyCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const readySocketRef = useRef<Socket | null>(null);
+  const hasNavigated = useRef(false);
 
   // Skeleton pulse
   const skeletonPulse = useRef(new Animated.Value(0.4)).current;
@@ -150,13 +161,38 @@ const ResultScreen = () => {
     return () => loop.stop();
   }, [isLoading]);
 
+  // ── Ready-status socket ───────────────────────────────────────────────────
+  // Server events expected:
+  //   emit  → join_results_lobby { sessionId }
+  //   emit  → mark_ready { sessionId }
+  //   emit  → unmark_ready { sessionId }
+  //   listen← ready_update { readyCount: number; totalCount: number }
+  useEffect(() => {
+    if (!sessionId) return;
+    const socket = io(API_BASE, { transports: ["websocket"], forceNew: true });
+    readySocketRef.current = socket;
+    socket.on("connect", () => {
+      socket.emit("join_results_lobby", { sessionId });
+    });
+    socket.on("ready_update", (data: { readyCount: number; totalCount: number }) => {
+      setReadyCount(data.readyCount);
+      setTotalCount(data.totalCount);
+    });
+    return () => {
+      socket.disconnect();
+    };
+  }, [sessionId]);
+
   // ── Fetch restaurants ────────────────────────────────────────────────────
   useEffect(() => {
     // Primary: restaurants JSON passed directly from questionnaire
     if (restaurantsParam) {
       try {
-        setRestaurants(JSON.parse(restaurantsParam));
-      } catch { /* ignore */ }
+        const parsed = JSON.parse(restaurantsParam);
+        setRestaurants(parsed);
+      } catch {
+        setFetchError("Couldn't load restaurant data. Please go back and try again.");
+      }
       return;
     }
 
@@ -165,6 +201,7 @@ const ResultScreen = () => {
 
     let cancelled = false;
     setIsLoading(true);
+    setFetchError(null);
 
     (async () => {
       try {
@@ -174,6 +211,7 @@ const ResultScreen = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userAnswers: formattedAnswers, sessionId }),
         });
+        if (!res.ok) throw new Error(`Server error ${res.status}`);
         const json = await res.json();
         const data: Restaurant[] = Array.isArray(json.data) ? json.data : [];
         if (!cancelled) {
@@ -181,16 +219,53 @@ const ResultScreen = () => {
           setIsLoading(false);
         }
       } catch (err) {
-        console.error("getRestaurant failed:", err);
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setFetchError("Couldn't reach the server. Check your connection and go back to retry.");
+          setIsLoading(false);
+        }
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answersParam, restaurantsParam, sessionId]);
 
+  // ── Navigate when everyone is ready and restaurants are loaded ──────────
+  useEffect(() => {
+    if (hasNavigated.current) return;
+    if (!isReady) return;
+    if (isLoading || restaurants.length === 0 || !!fetchError) return;
+
+    // Solo: totalCount is 0 (server never responded) or 1 (confirmed alone) → go immediately.
+    // Group: wait until the server confirms all members are ready.
+    const canNavigate = totalCount <= 1 ? true : readyCount >= totalCount;
+    if (!canNavigate) return;
+
+    hasNavigated.current = true;
+    router.push({
+      pathname: "/pickBan",
+      params: {
+        sessionId: sessionId ?? "",
+        isHost: isHostParam ?? "false",
+        restaurants: JSON.stringify(restaurants),
+      },
+    });
+  }, [isReady, readyCount, totalCount, isLoading, restaurants, fetchError]);
+
   if (!fontsLoaded) return null;
+
+  const toggleReady = () => {
+    if (isLoading || restaurants.length === 0 || !!fetchError) return;
+    if (!isReady) {
+      readySocketRef.current?.emit("mark_ready", { sessionId });
+      setIsReady(true);
+    } else {
+      readySocketRef.current?.emit("unmark_ready", { sessionId });
+      setIsReady(false);
+    }
+  };
 
   const openCard = (card: Restaurant) => {
     setActiveImageIdx(0);
@@ -221,17 +296,12 @@ const ResultScreen = () => {
         <MyButton style={styles.sideButton} onClick={() => router.back()}>
           <Feather name="arrow-left" size={24} color="black" />
         </MyButton>
-        <View style={styles.titleContainer}>
+        <View style={styles.titleContainer} pointerEvents="none">
           <Text style={styles.topText}>{getSessionLabel()}</Text>
           <Text style={styles.bottomText}>
             {isLoading ? "Finding matches…" : `${restaurants.length} Matches Found`}
           </Text>
         </View>
-        <MyButton style={styles.sideButton} onClick={() => {}}>
-          <View style={styles.profileCircle}>
-            <Feather name="user" size={20} color="#5b5b5b" />
-          </View>
-        </MyButton>
       </View>
 
       {/* ── Title ── */}
@@ -258,8 +328,12 @@ const ResultScreen = () => {
           ]}
         >
           {isLoading ? (
-            // Skeleton placeholders
             Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} pulse={skeletonPulse} />)
+          ) : fetchError ? (
+            <View style={[styles.emptyState, { width: CARD_WIDTH }]}>
+              <Feather name="wifi-off" size={32} color="#ba1a1a" style={{ marginBottom: 12 }} />
+              <Text style={[styles.emptyText, { color: "#ba1a1a" }]}>{fetchError}</Text>
+            </View>
           ) : restaurants.length === 0 ? (
             <View style={[styles.emptyState, { width: CARD_WIDTH }]}>
               <Text style={styles.emptyText}>No matches found. Try adjusting your filters.</Text>
@@ -275,18 +349,13 @@ const ResultScreen = () => {
                 >
                   <Card
                     header={card.header}
-                    imageURL={card.imageURLs?.[0] ?? card.imageURL}
+                    imageURL={card.imageURLs?.find((u) => !!u) ?? card.imageURL}
                     label={card.label}
                     priceRange={card.priceRange}
                     rating={card.rating}
                     description={card.caption}
+                    distance={dist ?? undefined}
                   />
-                  {dist ? (
-                    <View style={styles.distancePill}>
-                      <Feather name="map-pin" size={11} color="#555" />
-                      <Text style={styles.distanceText}>{dist}</Text>
-                    </View>
-                  ) : null}
                 </Pressable>
               );
             })
@@ -296,30 +365,50 @@ const ResultScreen = () => {
 
       {/* ── Footer ── */}
       <View style={styles.bottomContainer}>
-        <Text style={styles.topText}>Waiting for others...</Text>
+        <Text style={styles.topText}>
+          {totalCount > 0 && readyCount === totalCount
+            ? "Everyone's ready!"
+            : "Waiting for others..."}
+        </Text>
         <View style={styles.imageStack}>
-          {/* Two participants already ready */}
-          <View style={[styles.userAvatar, styles.userAvatarReady]}>
-            <Feather name="check" size={15} color="white" />
-          </View>
-          <View style={[styles.userAvatar, styles.userAvatarReady, styles.userAvatarOffset]}>
-            <Feather name="check" size={15} color="white" />
-          </View>
-          {/* One participant still pending */}
-          <Image
-            style={[styles.userImage, styles.userAvatarOffset]}
-            source={require("../assets/images/sam.jpg")}
-          />
-          {/* More participants indicator */}
-          <View style={[styles.userAvatar, styles.userAvatarMore, styles.userAvatarOffset]}>
-            <Text style={styles.moreDotsText}>···</Text>
-          </View>
+          {totalCount === 0 ? (
+            <ActivityIndicator size="small" color="#999" />
+          ) : (
+            <>
+              {Array.from({ length: Math.min(totalCount, 4) }).map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.userAvatar,
+                    i < readyCount ? styles.userAvatarReady : styles.userAvatarPending,
+                    i > 0 && styles.userAvatarOffset,
+                  ]}
+                >
+                  {i < readyCount ? (
+                    <Feather name="check" size={15} color="white" />
+                  ) : (
+                    <Feather name="user" size={15} color="#888" />
+                  )}
+                </View>
+              ))}
+              {totalCount > 4 && (
+                <View style={[styles.userAvatar, styles.userAvatarMore, styles.userAvatarOffset]}>
+                  <Text style={styles.moreDotsText}>+{totalCount - 4}</Text>
+                </View>
+              )}
+            </>
+          )}
         </View>
       </View>
 
       <View style={styles.buttonWrapper}>
-        {/* No-results nudge — only shown once loading is done and list is empty */}
-        {!isLoading && restaurants.length === 0 && (
+        {!isLoading && fetchError && (
+          <View style={styles.noResultsHint}>
+            <Feather name="wifi-off" size={15} color="#ba1a1a" />
+            <Text style={styles.noResultsHintText}>{fetchError}</Text>
+          </View>
+        )}
+        {!isLoading && !fetchError && restaurants.length === 0 && (
           <View style={styles.noResultsHint}>
             <Feather name="alert-circle" size={15} color="#ba1a1a" />
             <Text style={styles.noResultsHintText}>
@@ -328,21 +417,19 @@ const ResultScreen = () => {
           </View>
         )}
         <MyButton
-          onClick={() =>
-            router.push({
-              pathname: "/pickBan",
-              params: { restaurants: JSON.stringify(restaurants), sessionId: sessionId ?? "" },
-            })
-          }
+          onClick={toggleReady}
           style={[
             styles.readyButton,
-            (isLoading || restaurants.length === 0) && styles.readyButtonDisabled,
+            isReady && styles.readyButtonActive,
+            (isLoading || restaurants.length === 0 || !!fetchError) && styles.readyButtonDisabled,
           ]}
-          disabled={isLoading || restaurants.length === 0}
+          disabled={isLoading || restaurants.length === 0 || !!fetchError}
         >
-          <Text style={styles.readyButtonText}>{isLoading ? "Loading…" : "I'm Ready"}</Text>
-          {!isLoading && restaurants.length > 0 && (
-            <Feather name="user-check" size={16} color="white" />
+          <Text style={[styles.readyButtonText, isReady && styles.readyButtonTextActive]}>
+            {isLoading ? "Loading…" : isReady ? "I'm Ready ✓" : "I'm Ready"}
+          </Text>
+          {!isLoading && restaurants.length > 0 && !fetchError && (
+            <Feather name={isReady ? "check-circle" : "user-check"} size={16} color={isReady ? "#1b1b1b" : "white"} />
           )}
         </MyButton>
       </View>
@@ -452,19 +539,6 @@ const ResultScreen = () => {
               <Text style={styles.sectionLabel}>ABOUT</Text>
               <Text style={styles.modalDesc}>{selectedCard?.caption}</Text>
 
-              {(selectedCard?.popularItems?.length ?? 0) > 0 && (
-                <>
-                  <View style={styles.divider} />
-                  <Text style={styles.sectionLabel}>POPULAR ITEMS</Text>
-                  {selectedCard!.popularItems!.map((item, idx) => (
-                    <View key={idx} style={styles.popularRow}>
-                      <View style={styles.popularDot} />
-                      <Text style={styles.popularItem}>{item}</Text>
-                    </View>
-                  ))}
-                </>
-              )}
-
               <View style={{ height: 40 }} />
             </ScrollView>
           </View>
@@ -481,12 +555,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingBottom: 10,
     width: "100%",
     borderBottomWidth: 1,
     borderBottomColor: "#E0E0E0",
+    position: "relative",
   },
   sideButton: {
     width: 50,
@@ -494,8 +568,15 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
+    zIndex: 1,
   },
-  titleContainer: { alignItems: "center", justifyContent: "center" },
+  titleContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   topText: {
     fontFamily: "Inter_400Regular",
     fontSize: 14,
@@ -549,25 +630,6 @@ const styles = StyleSheet.create({
   emptyState: { justifyContent: "center", alignItems: "center", paddingVertical: 60 },
   emptyText: { fontFamily: "Inter_400Regular", fontSize: 15, color: "#888", textAlign: "center" },
 
-  // Distance pill
-  distancePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    alignSelf: "flex-start",
-    marginTop: 6,
-    marginLeft: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: "#f0eeea",
-  },
-  distanceText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 12,
-    color: "#444",
-  },
-
   // ── Footer ──
   bottomContainer: {
     flexDirection: "row",
@@ -577,7 +639,6 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 8,
   },
-  userImage: { width: 38, height: 38, borderRadius: 19, borderColor: "white", borderWidth: 2.5 },
   imageStack: { flexDirection: "row", alignItems: "center" },
   userAvatar: {
     width: 38,
@@ -590,6 +651,7 @@ const styles = StyleSheet.create({
   },
   userAvatarOffset: { marginLeft: -10 },
   userAvatarReady: { backgroundColor: "#1b1b1b" },
+  userAvatarPending: { backgroundColor: "#d9d9d9" },
   userAvatarMore: { backgroundColor: "#d9d9d9" },
   moreDotsText: {
     fontFamily: "Inter_600SemiBold",
@@ -600,6 +662,11 @@ const styles = StyleSheet.create({
 
   buttonWrapper: { paddingHorizontal: 16, paddingBottom: 8 },
   readyButton: { width: "100%", height: 56, justifyContent: "center" },
+  readyButtonActive: {
+    backgroundColor: "#f0eeea",
+    borderWidth: 2,
+    borderColor: "#1b1b1b",
+  },
   readyButtonDisabled: { opacity: 0.4 },
   noResultsHint: {
     flexDirection: "row",
@@ -620,6 +687,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   readyButtonText: { color: "white", fontSize: 16, fontWeight: "bold" },
+  readyButtonTextActive: { color: "#1b1b1b" },
 
   // ── Modal ──
   modalRoot: { flex: 1 },

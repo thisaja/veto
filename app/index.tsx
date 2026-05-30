@@ -78,7 +78,7 @@ const LandingScreen = () => {
               </Text>
             </MyButton>
             <TouchableOpacity
-              onPress={() => { loginAsGuest(); router.push("/createSession"); }}
+              onPress={() => { loginAsGuest(); router.push("/(tabs)"); }}
               style={{ paddingTop: 12 }}
             >
               <Text

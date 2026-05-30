@@ -3,10 +3,16 @@ import { useAuth } from "./AuthContext";
 
 const API_BASE = "http://10.0.0.129:5000";
 
+export type LatLng = { latitude: number; longitude: number };
+
 type SessionContextType = {
   sessionId: string | null;
+  userLocation: LatLng | null;
+  setUserLocation: (loc: LatLng) => void;
   startSession: () => Promise<string | null>;
   clearSession: () => void;
+  resumePath: string | null;
+  setResumePath: (path: string | null) => void;
 };
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -19,9 +25,12 @@ export const useSession = () => {
 
 export const SessionProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<LatLng | null>(null);
+  const [resumePath, setResumePath] = useState<string | null>(null);
   const { userId, isGuest, guestId } = useAuth();
 
   const startSession = async (): Promise<string | null> => {
+    setResumePath(null);
     try {
       const body = isGuest ? { guestId } : { userId };
 
@@ -47,10 +56,16 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     }
   };
 
-  const clearSession = () => setSessionId(null);
+  const clearSession = () => {
+    setSessionId(null);
+    setUserLocation(null);
+    setResumePath(null);
+  };
 
   return (
-    <SessionContext.Provider value={{ sessionId, startSession, clearSession }}>
+    <SessionContext.Provider
+      value={{ sessionId, userLocation, setUserLocation, startSession, clearSession, resumePath, setResumePath }}
+    >
       {children}
     </SessionContext.Provider>
   );

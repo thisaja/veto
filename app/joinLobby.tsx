@@ -5,12 +5,13 @@ import {
   Newsreader_600SemiBold,
 } from "@expo-google-fonts/newsreader";
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
@@ -23,12 +24,22 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const API_BASE = "http://10.0.0.129:5000";
 
+function generateUUID(): string {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export default function JoinLobbyScreen() {
   const router = useRouter();
-  const { loginAsGuest, userId } = useAuth();
+  const { userId, guestId, diningAlias, setAuth } = useAuth();
+  const { error: routeError } = useLocalSearchParams<{ error?: string }>();
 
   const [code,    setCode]    = useState("");
   const [joining, setJoining] = useState(false);
+  const [error,   setError]   = useState<string | null>(routeError ?? null);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -43,25 +54,52 @@ export default function JoinLobbyScreen() {
     const trimmed = code.trim();
     if (!trimmed) return;
     Keyboard.dismiss();
+    setError(null);
     setJoining(true);
 
-    // Ensure the user has an identity before joining
-    if (!userId) loginAsGuest();
+    // Resolve identity locally so we don't depend on a React re-render
+    let resolvedUserId: string | null = userId ?? null;
+    let resolvedGuestId: string | null = guestId ?? null;
+    if (!resolvedUserId && !resolvedGuestId) {
+      resolvedGuestId = generateUUID();
+      setAuth({ isGuest: true, guestId: resolvedGuestId });
+    }
 
     try {
-      const res  = await fetch(`${API_BASE}/session/validate/${trimmed}`);
-      const json = await res.json();
-      if (json.success && json.sessionId) {
-        router.replace({
-          pathname: "/invite",
-          params: { sessionId: json.sessionId, isGuest: "true" },
-        });
-      } else {
-        alert("Session not found. Check the code and try again.");
+      // Step 1: resolve the short code / full UUID to a canonical session ID
+      const validateRes  = await fetch(`${API_BASE}/session/validate/${trimmed}`);
+      const validateJson = await validateRes.json();
+      if (!validateJson.success || !validateJson.sessionId) {
+        setError("Session not found. Check the code and try again.");
+        setJoining(false);
+        return;
       }
+      const sessionId = validateJson.sessionId;
+
+      // Step 2: register this user in SessionMembers
+      const joinRes  = await fetch(`${API_BASE}/session/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          userId:  resolvedUserId  ?? undefined,
+          guestId: resolvedGuestId ?? undefined,
+          alias:   diningAlias ?? "Guest",
+        }),
+      });
+      const joinJson = await joinRes.json();
+      if (!joinJson.success) {
+        setError(joinJson.message ?? "Couldn't join session.");
+        setJoining(false);
+        return;
+      }
+
+      router.replace({
+        pathname: "/invite",
+        params: { sessionId, isGuest: "true" },
+      });
     } catch {
-      alert("Couldn't connect. Please check your connection and try again.");
-    } finally {
+      setError("Couldn't connect. Please check your connection and try again.");
       setJoining(false);
     }
   };
@@ -91,7 +129,7 @@ export default function JoinLobbyScreen() {
         <TouchableOpacity
           style={styles.qrCard}
           activeOpacity={0.8}
-          onPress={() => router.push("/scanQR")}
+          onPress={() => Linking.openURL("camera://").catch(() => Linking.openSettings())}
         >
           <View style={styles.qrIconCircle}>
             <Feather name="camera" size={26} color="#1b1b1b" />
@@ -115,17 +153,24 @@ export default function JoinLobbyScreen() {
           <Text style={styles.inputLabel}>INVITE CODE OR LINK</Text>
           <View style={styles.inputRow}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, !!error && styles.inputError]}
               placeholder="e.g. a1b2c3d4 or veto://join/..."
               placeholderTextColor="#bbb"
               value={code}
-              onChangeText={setCode}
+              onChangeText={v => { setCode(v); setError(null); }}
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="go"
               onSubmitEditing={handleJoin}
+              editable={!joining}
             />
           </View>
+          {error && (
+            <View style={styles.errorRow}>
+              <Feather name="alert-circle" size={13} color="#ba1a1a" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
         </View>
 
         {/* ── Join button ── */}
@@ -263,6 +308,9 @@ const styles = StyleSheet.create({
     color: "#1b1b1b",
     backgroundColor: "#fafafa",
   },
+  inputError: { borderColor: "#ba1a1a", backgroundColor: "#fff8f8" },
+  errorRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, marginTop: 8 },
+  errorText: { fontFamily: "Inter_400Regular", fontSize: 13, color: "#ba1a1a", flex: 1, lineHeight: 18 },
 
   // ── Join button ──
   joinBtn: {

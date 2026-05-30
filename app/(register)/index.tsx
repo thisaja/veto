@@ -12,7 +12,8 @@ import {
 } from "@expo-google-fonts/newsreader";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useState } from "react";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useUserDetailsContext } from "./_layout";
 
@@ -26,10 +27,23 @@ const Step1Screen = () => {
     Newsreader_600SemiBold_Italic,
   });
   const { userDetails, setUserDetails, userErrors, setUserErrors } = useUserDetailsContext();
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [termsError,    setTermsError]    = useState(false);
 
   const router = useRouter();
 
   const handleContinue = () => {
+    // Apple App Store requirement: user must explicitly accept T&C before account creation
+    if (!agreedToTerms) {
+      setTermsError(true);
+      Alert.alert(
+        "Please accept the terms",
+        "You must agree to the Terms of Service and Privacy Policy to create an account."
+      );
+      return;
+    }
+    setTermsError(false);
+
     const newUserErrors: UserRegisterErrors = {
       ...userErrors,
       FirstName: validateName(userDetails?.FirstName),
@@ -54,14 +68,16 @@ const Step1Screen = () => {
 
   return (
     <SafeAreaView style={globalStyles.screen}>
-      <View
-        style={{
-          height: "100%",
-          width: "100%",
-          flexDirection: "column",
-          alignItems: "center",
-        }}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
       >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, alignItems: "center" }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         {/* Header */}
         <View
           style={{
@@ -223,13 +239,40 @@ const Step1Screen = () => {
               defaultValue={userDetails?.ConfirmedPassword}
             />
           </View>
+          {/* ── Terms & Privacy checkbox (Apple App Store requirement) ── */}
+          <TouchableOpacity
+            style={styles.termsRow}
+            onPress={() => { setAgreedToTerms(v => !v); setTermsError(false); }}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked, termsError && styles.checkboxError]}>
+              {agreedToTerms && <Feather name="check" size={13} color="#fff" />}
+            </View>
+            <Text style={styles.termsText}>
+              I agree to the{" "}
+              <Text
+                style={styles.termsLink}
+                onPress={() => router.push("/terms")}
+              >
+                Terms of Service
+              </Text>
+              {" "}and{" "}
+              <Text
+                style={styles.termsLink}
+                onPress={() => router.push("/privacy")}
+              >
+                Privacy Policy
+              </Text>
+            </Text>
+          </TouchableOpacity>
+
           <MyButton onClick={handleContinue} style={{ height: 48, width: "100%" }}>
             <Text style={{ color: "white" }}>CONTINUE</Text>
             <Feather name="arrow-right" size={16} color="white" />
           </MyButton>
         </View>
         {/* Footer */}
-        <View style={{ flexDirection: "row", gap: 4 }}>
+        <View style={{ flexDirection: "row", gap: 4, paddingBottom: 16 }}>
           <Text
             style={{
               fontFamily: "Inter_400Regular",
@@ -257,7 +300,8 @@ const Step1Screen = () => {
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -273,6 +317,44 @@ const styles = StyleSheet.create({
     height: 36,
     borderColor: "red",
     borderWidth: 1,
+  },
+
+  // ── Terms & Privacy checkbox ──
+  termsRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: "#ccc",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+    flexShrink: 0,
+  },
+  checkboxChecked: {
+    backgroundColor: "#1b1b1b",
+    borderColor: "#1b1b1b",
+  },
+  checkboxError: {
+    borderColor: "#ba1a1a",
+    backgroundColor: "#fff4f4",
+  },
+  termsText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: "#4C4546",
+    flex: 1,
+    lineHeight: 20,
+  },
+  termsLink: {
+    fontFamily: "Inter_600SemiBold",
+    color: "#1b1b1b",
+    textDecorationLine: "underline",
   },
 });
 export default Step1Screen;

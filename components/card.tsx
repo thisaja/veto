@@ -12,9 +12,10 @@ interface MyCardProps {
   priceRange?: string;
   rating?: string;
   description?: string;
+  distance?: string;
 }
 
-const Card = ({ header, imageURL, label, priceRange, rating, description }: MyCardProps) => {
+const Card = ({ header, imageURL, label, priceRange, rating, description, distance }: MyCardProps) => {
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Newsreader_400Regular,
@@ -25,7 +26,10 @@ const Card = ({ header, imageURL, label, priceRange, rating, description }: MyCa
   return (
     <SafeAreaProvider>
       <View style={styles.container}>
-        {imageURL && <Image source={{ uri: imageURL }} style={styles.image} />}
+
+        {imageURL ? (
+          <Image source={{ uri: imageURL }} style={styles.image} />
+        ) : null}
 
         <View style={styles.labelsRow}>
           {label && (
@@ -41,6 +45,11 @@ const Card = ({ header, imageURL, label, priceRange, rating, description }: MyCa
           {rating && (
             <View style={[styles.chip, styles.chipOutline]}>
               <Text style={[styles.chipText, styles.chipTextDark]}>★ {rating}</Text>
+            </View>
+          )}
+          {distance && (
+            <View style={[styles.chip, styles.chipOutline]}>
+              <Text style={[styles.chipText, styles.chipTextDark]}>📍 {distance}</Text>
             </View>
           )}
         </View>

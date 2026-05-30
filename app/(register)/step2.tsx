@@ -12,7 +12,10 @@ import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import AvatarPicker from "@/components/AvatarPicker";
+import { presetKey } from "@/components/PresetAvatars";
+import React from "react";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useUserDetailsContext } from "./_layout";
 
@@ -40,6 +43,7 @@ const Step2Screen = () => {
 
   const { userDetails, setUserDetails, userErrors, setUserErrors } = useUserDetailsContext();
   const router = useRouter();
+  const [selectedPreset, setSelectedPreset] = React.useState<number | null>(null);
 
   const pickImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -54,7 +58,8 @@ const Step2Screen = () => {
       quality: 1,
     });
     if (!result.canceled) {
-      setUserDetails({ ...userDetails, ProfilePicture: result });
+      setSelectedPreset(null);
+      setUserDetails({ ...userDetails, ProfilePicture: result, PresetAvatar: undefined });
     }
   };
 
@@ -89,8 +94,15 @@ const Step2Screen = () => {
 
   return (
     <SafeAreaView style={globalStyles.screen}>
-      <View style={{ height: "100%", width: "100%", flexDirection: "column", alignItems: "center" }}>
-
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, alignItems: "center" }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         {/* Header */}
         <View style={{ flexDirection: "column", justifyContent: "center", height: 60, width: "100%" }}>
           <MyButton
@@ -115,24 +127,28 @@ const Step2Screen = () => {
             </Text>
           </View>
 
-          {/* Photo picker */}
-          <View style={{ justifyContent: "center", alignItems: "center" }}>
-            <MyButton
-              onClick={pickImage}
-              style={{ flexDirection: "column", height: 128, width: 128, borderRadius: 128, backgroundColor: "#EEEEEE" }}
-            >
-              {userDetails?.ProfilePicture ? (
-                <Image
-                  source={{ uri: userDetails.ProfilePicture.assets[0].uri }}
-                  style={styles.image}
-                />
-              ) : (
-                <>
-                  <Feather name="upload" size={32} color="#4C4546" />
-                  <Text style={{ color: "#4C4546", fontSize: 14 }}>UPLOAD</Text>
-                </>
-              )}
-            </MyButton>
+          {/* Avatar selection */}
+          <View style={{ gap: 14 }}>
+            <Text style={{ fontFamily: "Newsreader_400Regular", fontSize: 18 }}>
+              Choose an avatar
+            </Text>
+
+            <AvatarPicker
+              selected={selectedPreset}
+              onSelect={i => {
+                setSelectedPreset(i);
+                setUserDetails({ ...userDetails, ProfilePicture: undefined, PresetAvatar: presetKey(i) });
+              }}
+            />
+
+            <TouchableOpacity style={styles.uploadRow} onPress={pickImage} activeOpacity={0.75}>
+              <Feather name="upload" size={16} color="#1b1b1b" />
+              <Text style={styles.uploadText}>
+                {userDetails?.ProfilePicture
+                  ? "Photo selected ✓ — tap to change"
+                  : "Or upload your own photo"}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Username / DiningAlias */}
@@ -187,13 +203,30 @@ const Step2Screen = () => {
             Skip — I'll get a random username
           </Text>
         </TouchableOpacity>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  image: { width: 128, height: 128, borderRadius: 128 },
+  uploadRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e8e6e1",
+    backgroundColor: "#fafaf9",
+  },
+  uploadText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: "#666",
+    flex: 1,
+  },
   usernameRow: {
     flexDirection: "row",
     alignItems: "center",

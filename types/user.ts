@@ -10,6 +10,7 @@ export type UserRegisterDetails = UserLoginDetails & {
   ConfirmedPassword?: string;
   DiningAlias?: string;
   ProfilePicture?: ImagePickerSuccessResult;
+  PresetAvatar?: string;
   Dealbreakers?: number[];
 };
 

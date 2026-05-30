@@ -13,7 +13,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 const LoginScreen = () => {
   let [fontsLoaded] = useFonts({
@@ -29,31 +29,38 @@ const LoginScreen = () => {
     Email: true,
     Password: true,
   });
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { setAuth } = useAuth();
 
   const handleLogin = async () => {
+    setLoginError(null);
     const newUserErrors: UserLoginErrors = {
       Email: validateEmail(userDetails?.Email),
       Password: validatePassword(userDetails?.Password),
     };
     setUserErrors(newUserErrors);
-    if (newUserErrors.Email && newUserErrors.Password) {
-      console.log(`e-mail: ${userDetails?.Email}\npassword: ${userDetails?.Password}`);
-      try {
-        const response = await fetch("http://10.0.0.129:5000/login", {
-          method: "POST",
-          body: JSON.stringify(userDetails),
-          headers: { "Content-Type": "application/json" },
-        });
-        const json = await response.json();
-        if (response.ok) {
-          setAuth({ userId: json.userId, token: json.access_token, isGuest: false, guestId: null, diningAlias: json.diningAlias ?? null });
-          router.navigate("/(tabs)");
-        }
-      } catch (error) {
-        console.error("Login error:", error);
+    if (!newUserErrors.Email || !newUserErrors.Password) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch("http://10.0.0.129:5000/login", {
+        method: "POST",
+        body: JSON.stringify(userDetails),
+        headers: { "Content-Type": "application/json" },
+      });
+      const json = await response.json();
+      if (response.ok) {
+        setAuth({ userId: json.userId, token: json.access_token, isGuest: false, guestId: null, diningAlias: json.diningAlias ?? null });
+        router.navigate("/(tabs)");
+      } else {
+        setLoginError(json.message ?? "Incorrect email or password.");
       }
+    } catch {
+      setLoginError("Couldn't connect to the server. Check your network.");
+    } finally {
+      setLoading(false);
     }
   };
   return (
@@ -78,7 +85,7 @@ const LoginScreen = () => {
           Welcome Back
         </Text>
         <View style={{ flexDirection: "column", gap: 48, width: "100%" }}>
-          <View style={{ gap: 16 }}>
+          <View style={{ gap: 8 }}>
             <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#4C4546" }}>
               EMAIL ADDRESS
             </Text>
@@ -89,14 +96,17 @@ const LoginScreen = () => {
               placeholderTextColor={"#5E5E5E"}
               onChangeText={(newEmail) => setUserDetails({ ...userDetails, Email: newEmail })}
             />
+            {userErrors.Email === false && (
+              <Text style={styles.fieldError}>Enter a valid email address</Text>
+            )}
           </View>
-          <View style={{ gap: 16 }}>
+          <View style={{ gap: 8 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
               <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#4C4546" }}>
                 PASSWORD
               </Text>
-              <TouchableOpacity>
-                <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: "#5F5E5B" }}>
+              <TouchableOpacity onPress={() => router.push("/forgot-password")}>
+                <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: "#5F5E5B", textDecorationLine: "underline" }}>
                   Forgot Password?
                 </Text>
               </TouchableOpacity>
@@ -111,9 +121,18 @@ const LoginScreen = () => {
                 setUserDetails({ ...userDetails, Password: newPassword })
               }
             />
+            {userErrors.Password === false && (
+              <Text style={styles.fieldError}>Password is required</Text>
+            )}
           </View>
-          <MyButton onClick={handleLogin} style={{ height: 48, width: "100%" }}>
-            <Text style={{ color: "white" }}>LOG IN</Text>
+          {loginError && (
+            <Text style={styles.loginError}>{loginError}</Text>
+          )}
+          <MyButton onClick={handleLogin} style={{ height: 48, width: "100%" }} disabled={loading}>
+            {loading
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <Text style={{ color: "white" }}>LOG IN</Text>
+            }
           </MyButton>
         </View>
         <View style={{ flexDirection: "row", gap: 4 }}>
@@ -160,6 +179,17 @@ const styles = StyleSheet.create({
     height: 36,
     borderColor: "red",
     borderWidth: 1,
+  },
+  loginError: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: "#ba1a1a",
+    textAlign: "center",
+  },
+  fieldError: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    color: "#ba1a1a",
   },
 });
 export default LoginScreen;
