@@ -7,6 +7,7 @@ import {
   Newsreader_600SemiBold,
   useFonts,
 } from "@expo-google-fonts/newsreader";
+import { useAuth } from "@/context/AuthContext";
 import { ImageBackground } from "expo-image";
 import { useRouter } from "expo-router";
 import { Text, TouchableOpacity, View } from "react-native";
@@ -20,6 +21,7 @@ const LandingScreen = () => {
     Inter_600SemiBold,
   });
   const router = useRouter();
+  const { loginAsGuest } = useAuth();
   return (
     <View style={{ width: "100%", height: "100%" }}>
       <ImageBackground
@@ -76,7 +78,7 @@ const LandingScreen = () => {
               </Text>
             </MyButton>
             <TouchableOpacity
-              onPress={() => router.push("/createSession")}
+              onPress={() => { loginAsGuest(); router.push("/(tabs)"); }}
               style={{ paddingTop: 12 }}
             >
               <Text
