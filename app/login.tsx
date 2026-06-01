@@ -10,6 +10,7 @@ import {
   Newsreader_600SemiBold_Italic,
   useFonts,
 } from "@expo-google-fonts/newsreader";
+import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
@@ -29,6 +30,8 @@ const LoginScreen = () => {
     Password: true,
   });
   const router = useRouter();
+  const { setAuth } = useAuth();
+
   const handleLogin = async () => {
     const newUserErrors: UserLoginErrors = {
       Email: validateEmail(userDetails?.Email),
@@ -38,18 +41,18 @@ const LoginScreen = () => {
     if (newUserErrors.Email && newUserErrors.Password) {
       console.log(`e-mail: ${userDetails?.Email}\npassword: ${userDetails?.Password}`);
       try {
-        const response = await fetch("http://localhost:5000/login", {
+        const response = await fetch("http://10.0.0.129:5000/login", {
           method: "POST",
           body: JSON.stringify(userDetails),
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         });
+        const json = await response.json();
         if (response.ok) {
+          setAuth({ userId: json.userId, token: json.access_token, isGuest: false, guestId: null });
           router.navigate("/(tabs)");
         }
       } catch (error) {
-        console.error("something went wrong:", error);
+        console.error("Login error:", error);
       }
     }
   };

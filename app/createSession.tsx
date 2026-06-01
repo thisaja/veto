@@ -1,3 +1,4 @@
+import { useSession } from '@/context/SessionContext';
 import { globalStyles } from '@/constants/global';
 import { Feather } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
@@ -12,6 +13,9 @@ import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { Newsreader_400Regular, Newsreader_600SemiBold, useFonts } from '@expo-google-fonts/newsreader';
 import { router } from 'expo-router';
 
+const API_BASE = "http://10.0.0.129:5000";
+const DIETARY_OPTIONS = ["Vegan", "Vegetarian", "Gluten-Free", "Halal", "Nut Allergy", "Kosher"];
+
 const CreateSessionScreen = () => {
     let [fontsLoaded] = useFonts({
         Newsreader_400Regular,
@@ -25,6 +29,30 @@ const CreateSessionScreen = () => {
     })
     // The radius is in KM
     const [radius, setRadius] = useState<number>(3)
+    const [dietaryRestrictions, setDietaryRestrictions] = useState<number[]>([]);
+    const { startSession } = useSession();
+
+    const handleSetFilters = async () => {
+        await startSession();
+
+        try {
+            await fetch(`${API_BASE}/api/places/search`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    latitude: marker.latitude,
+                    longitude: marker.longitude,
+                    radius,
+                    dietaryRestrictions,
+                }),
+            });
+        } catch (err) {
+            console.error("Failed to fetch nearby restaurants:", err);
+        }
+
+        router.push("/invite");
+    };
+
     return (
         <SafeAreaView style={globalStyles.screen}>
             <Text style={{ fontFamily: "Newsreader_600SemiBold", fontSize: 24, color: "#1B1B1B" }}>
@@ -68,9 +96,9 @@ const CreateSessionScreen = () => {
                 <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: "#4C4546", paddingInlineEnd: 25 }}>Select dietary restrictions for the group.
                     We'll only show places that accommodate
                     everyone.</Text>
-                <Multiselect options={["Vegan", "Vegetarian", "Gluten-Free", "Halal", "Nut Allergy", "Kosher"]} />
+                <Multiselect options={DIETARY_OPTIONS} onClick={setDietaryRestrictions} />
             </View>
-            <MyButton onClick={() => router.push("/invite")} style={{ width: "100%", height: 56 }} >
+            <MyButton onClick={handleSetFilters} style={{ width: "100%", height: 56 }} >
                 <Text style={{ color: "white", fontSize: 16 }}>Set Filters</Text>
                 <Feather name="arrow-right" size={16} color="white" />
             </MyButton>
